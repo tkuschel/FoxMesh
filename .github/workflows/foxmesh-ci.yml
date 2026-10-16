@@ -230,7 +230,7 @@ jobs:
           exit /b 1
         )
         pause
-EOF
+        EOF
 
         # Substitute address placeholders with configured hex values
         sed -i \
