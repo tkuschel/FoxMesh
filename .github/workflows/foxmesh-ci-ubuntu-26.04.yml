@@ -1,4 +1,4 @@
-name: Automated CI Build of FoxMesh
+name: Automated CI Build of FoxMesh using Ubuntu 26.04
 
 on:
   workflow_dispatch:
