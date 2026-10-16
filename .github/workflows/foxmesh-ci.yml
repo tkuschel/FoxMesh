@@ -53,7 +53,7 @@ jobs:
       run: pio pkg install --silent --global --platform espressif32
 
     - name: Compile the Project
-      run: pio run --silent
+      run: pio run
 
     # 11. Dynamically create the smart flashing scripts next to the T-Beam binary
     # with optional bootloader detection and group check
@@ -245,7 +245,6 @@ jobs:
       with:
         name: firmware-build-${{ github.event.inputs.target_branch || github.ref_name }}
         path: |
-          .pio/build/**/*.bin
+          .pio/build/ttgo-lora32-v21/*.bin
           flash_esp32_board.*
-        archive: true
-        retention-days: 7 # Artifacts will be automatically deleted after 7 days
+        retention-days: 10 # Artifacts will be automatically deleted after 10 days
