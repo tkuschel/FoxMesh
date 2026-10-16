@@ -77,14 +77,13 @@ static void process_command(const char* cmd) {
 // Background listening loop for keyboard input
 static void cli_worker_task(void *pvParameters) {
     // Configure UART parameters for native monitoring
-    uart_config_t uart_config = {
-        .baud_rate = 115200,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT
-    };
+    uart_config_t uart_config = {};
+    uart_config.baud_rate     = 115200;
+    uart_config.data_bits     = UART_DATA_8_BITS;
+    uart_config.parity        = UART_PARITY_DISABLE;
+    uart_config.stop_bits     = UART_STOP_BITS_1;
+    uart_config.flow_ctrl     = UART_HW_FLOWCTRL_DISABLE;
+    uart_config.source_clk    = UART_SCLK_DEFAULT;
 
     // Install UART driver without using resource-heavy interrupt queues
     ESP_ERROR_CHECK(uart_param_config(CLI_UART_PORT, &uart_config));
