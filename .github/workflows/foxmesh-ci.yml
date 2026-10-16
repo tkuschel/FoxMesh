@@ -45,6 +45,10 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pio-
 
+    # 4. Install PlatformIO Core and the required intelhex extension in a single, quiet command
+    - name: Install PlatformIO Core
+      run: python -m pip install --quiet --upgrade pip platformio intelhex
+
     - name: Install ESP32 platform
       run: pio pkg install --silent --global --platform espressif32
 
