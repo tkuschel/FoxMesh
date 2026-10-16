@@ -84,7 +84,7 @@ jobs:
         FLASH_PARTITIONS_ADDR="0x8000"
         FLASH_OTADATA_ADDR="0xE000"
         FLASH_SAFEBOOT_ADDR="0x10000"
-        FLASH_FIRMWARE_ADDR="0xC0000"
+        FLASH_FIRMWARE_ADDR="0x10000"
 
         # ----------------------------------------------------------------------
         # 1. Universal Linux Shell Script
