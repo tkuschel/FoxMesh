@@ -23,13 +23,13 @@ jobs:
     steps:
     # 1. Checkout the target branch
     - name: Checkout Target branch
-      uses: actions/checkout@7
+      uses: actions/checkout@v7
       with:
         ref: ${{ github.event.inputs.target_branch }} || github.ref }}
     
     # 2. Set up Python environment
     - name: Set up Python 3.x
-      uses: actions/setup-python@7
+      uses: actions/setup-python@v7
       with:
         python-version: '3.x'
 
