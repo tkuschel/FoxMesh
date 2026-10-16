@@ -19,7 +19,7 @@ static uint32_t current_mute_time_sec = Config::DEFAULT_MUTE_TIME_SEC;
 
 static void log_restore_timer_callback(TimerHandle_t xTimer) {
     // Print a clean new prompt since logs might have disrupted the visual flow
-    printf("\r\n[System] Debug logs unmuted after %lu seconds of inactivity. \r\n%s # ",
+    printf("\r\n[System] Debug logs unmuted after %lu seconds of inactivity. \r\n%s #\r\n",
         (unsigned long)current_mute_time_sec, Config::PROJECT_TITLE);
     fflush(stdout);
 
@@ -137,8 +137,8 @@ void start_cli_task(void) {
     // Dynamically initialize the timer with the variable interval using milliseconds conversion
     silence_timer = xTimerCreate(
         "MuteTimer",
-        pdMS_TO_TICKS(current_mute_time_sec * 1000), 
-        pdFALSE,              
+        pdMS_TO_TICKS(current_mute_time_sec * 1000),
+        pdFALSE,
         nullptr,
         log_restore_timer_callback
     );
