@@ -245,6 +245,6 @@ jobs:
       with:
         name: firmware-build-${{ github.event.inputs.target_branch || github.ref_name }}
         path: |
-          .pio/build/ttgo-lora32-v21/*.bin
-          flash_esp32_board.*
+          .pio/build/**/*.bin
+          # flash_esp32_board.*
         retention-days: 10 # Artifacts will be automatically deleted after 10 days
