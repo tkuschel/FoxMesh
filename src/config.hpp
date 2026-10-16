@@ -16,7 +16,7 @@ namespace Config {
 
     // Hardware Configuration
     constexpr gpio_num_t LED_GPIO_PIN     = GPIO_NUM_25;
-    constexpr int BLINK_INTERVAL_MS       = 2000;
+    constexpr int BLINK_INTERVAL_MS       = 5000;
     // OLED
     constexpr gpio_num_t OLED_SDA_PIN     = GPIO_NUM_21;
     constexpr gpio_num_t OLED_SCL_PIN     = GPIO_NUM_22;
