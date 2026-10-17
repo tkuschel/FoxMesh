@@ -17,12 +17,21 @@ FoxMesh is a resilient, off-grid timing infrastructure designed for Radio Orient
 * **Event-Driven Multitasking:** Built from the ground up with thread-safe, dynamically expandable libraries. Avoids CPU-heavy polling for subsystems like CLI, GNSS, or I2C.
 
 ## Hardware Support
-> ⚠️ **Note:** Hardware support is currently limited as the project is under active development. 
+> ⚠️ **Note:** Hardware support is currently limited as the project is under active development.
 
 The firmware is designed to target popular LoRa development ecosystems, with primary testing and core drivers focusing on:
 * **Heltec Automation:** Wireless Stick V3, WiFi LoRa 32 V3
 * **LILYGO:** T-Beam & T-Deck series
 * **RAK Wireless:** WisBlock modules
+
+---
+
+## 🌐 Project Mirrors / Hosting
+To ensure high availability and decentralization, this project is maintained across multiple platforms:
+* **Primary Repo (GitHub):** [github.com/tkuschel/FoxMesh](https://github.com/tkuschel/FoxMesh)
+* **Self-Hosted Mirror (Gitea):** [git.kuschel.at/tom/FoxMesh](https://git.kuschel.at/tom/FoxMesh)
+
+*Note: Both repositories are automatically kept synchronized. You can clone, open issues, or contribute on either platform.*
 
 *Contributions and hardware abstraction layer (HAL) testing for specific boards are highly welcome!*
 
