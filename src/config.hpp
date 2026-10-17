@@ -3,7 +3,7 @@
  * @file config.hpp
  * @brief Global compile-time configuration profile and pin mapping for FoxMesh
  * @author OM Tom (OE3TKT)
- * 
+ *
  * @license SPDX-License-Identifier: MIT
  * @copyright Copyright (c) 2026 OM Tom (OE3TKT)
  * For the full license terms, see the LICENSE file in the project root.
@@ -31,7 +31,7 @@ namespace Config {
     // Hardware Configuration
     constexpr gpio_num_t LED_GPIO_PIN     = GPIO_NUM_25;
     constexpr int BLINK_INTERVAL_MS       = 5000;
-    
+
     // OLED Display I2C Bus Configuration
     constexpr gpio_num_t OLED_SDA_PIN     = GPIO_NUM_21;
     constexpr gpio_num_t OLED_SCL_PIN     = GPIO_NUM_22;
@@ -45,4 +45,16 @@ namespace Config {
     constexpr gpio_num_t LORA_CS_PIN      = GPIO_NUM_18;
     constexpr gpio_num_t LORA_RST_PIN     = GPIO_NUM_23; // Adjusted configuration for T3_V1.6 hardware revision
     constexpr gpio_num_t LORA_IRQ_PIN     = GPIO_NUM_26;
+
+    // Semtech SX1276 LoRa Configuration Parameters
+    // 433.175 MHz is calculated by: 433175000 / (32000000 / 2^19) = 7096525 = 0x06C4CD
+    constexpr uint8_t LORA_FRF_MSB        = 0x06;
+    constexpr uint8_t LORA_FRF_MID        = 0xC4;
+    constexpr uint8_t LORA_FRF_LSB        = 0xCD;
+
+    // Modem Config 1: BW 250kHz (0x80), CR 4/6 (0x04), Explicit Header (0x00) -> 0x84
+    constexpr uint8_t LORA_MODEM_CONFIG_1 = 0x84;
+
+    // Modem Config 2: SF11 (0xB0), TX Continuous off (0x00), CRC On (0x04) -> 0xB4
+    constexpr uint8_t LORA_MODEM_CONFIG_2 = 0xB4;
 }

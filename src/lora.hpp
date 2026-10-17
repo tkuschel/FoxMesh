@@ -49,6 +49,20 @@ public:
      */
     esp_err_t transmitFrame(const uint8_t* buffer, uint8_t length);
 
+    /**
+     * @brief Dynamically updates the transceiver operating frequency at runtime.
+     * @param msb Most Significant Byte of the frequency fraction.
+     * @param mid Middle Significant Byte of the frequency fraction.
+     * @param lsb Least Significant Byte of the frequency fraction.
+     */
+    void setFrequency(uint8_t msb, uint8_t mid, uint8_t lsb);
+
+    /**
+     * @brief Dynamically updates the LoRa signal bandwidth at runtime.
+     * @param bw_khz Target bandwidth in kHz (e.g., 62, 125, 250, 500).
+     */
+    void setBandwidth(uint32_t bw_khz);
+
 private:
     spi_device_handle_t m_spiHandle = nullptr;
     TaskHandle_t m_taskHandle = nullptr;

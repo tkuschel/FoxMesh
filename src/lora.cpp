@@ -61,6 +61,9 @@ void LoraController::writeRegister(uint8_t address, uint8_t value) {
     spi_device_transmit(m_spiHandle, &trans);
 }
 
+// Suppress the ISO C++ braced-groups macro expansion warning for the FreeRTOS portYIELD macro
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 void IRAM_ATTR LoraController::gpioIsrHandler(void* arg) {
     auto* semaphore = static_cast<SemaphoreHandle_t>(arg);
     if (semaphore != nullptr) {
@@ -71,6 +74,7 @@ void IRAM_ATTR LoraController::gpioIsrHandler(void* arg) {
         }
     }
 }
+#pragma GCC diagnostic pop
 
 esp_err_t LoraController::initializeHardware() {
     esp_err_t err;
@@ -121,14 +125,57 @@ void LoraController::setModeReceiver() {
     writeRegister(0x01, 0x80U); // Sleep + LoRa Mode
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    // Hardwired for 868.1 MHz fallback channel
-    writeRegister(0x06, 0xD9U);
-    writeRegister(0x07, 0x06U);
-    writeRegister(0x08, 0x66U);
+    // Apply MeshCom network profile: 433.175 MHz, BW 250kHz, SF11, CR 4/6
+    writeRegister(0x06, Config::LORA_FRF_MSB);
+    writeRegister(0x07, Config::LORA_FRF_MID);
+    writeRegister(0x08, Config::LORA_FRF_LSB);
+
+    writeRegister(0x1D, Config::LORA_MODEM_CONFIG_1); // RegModemConfig1
+    writeRegister(0x1E, Config::LORA_MODEM_CONFIG_2); // RegModemConfig2
 
     writeRegister(0x40, 0x00U); // DIO0 map onto RxDone
     writeRegister(0x01, 0x85U); // RXCONTINUOUS
-    ESP_LOGI(TAG, "Radio base configuration applied. Listening on 868.1 MHz.");
+    ESP_LOGI(TAG, "Radio configured: 433.175 MHz | BW 250kHz | SF11 | CR 4/6");
+}
+
+void LoraController::setFrequency(uint8_t msb, uint8_t mid, uint8_t lsb) {
+    if (m_spiHandle == nullptr) return;
+
+    // Safely force transceiver to Standby to update hardware registers safely
+    writeRegister(0x01, 0x81U);
+    vTaskDelay(pdMS_TO_TICKS(5));
+
+    writeRegister(0x06, msb);
+    writeRegister(0x07, mid);
+    writeRegister(0x08, lsb);
+
+    // Re-engage Continous Reception Mode
+    writeRegister(0x01, 0x85U);
+    ESP_LOGI(TAG, "Frequency dynamically shifted to: 0x%02X%02X%02X", msb, mid, lsb);
+}
+
+void LoraController::setBandwidth(uint32_t bw_khz) {
+    if (m_spiHandle == nullptr) return;
+    uint8_t bw_setting = 0x00U;
+    bool valid = false;
+
+    if (bw_khz == 62)   { bw_setting = 0x60U; valid = true; }
+    if (bw_khz == 125)  { bw_setting = 0x70U; valid = true; }
+    if (bw_khz == 250)  { bw_setting = 0x80U; valid = true; }
+    if (bw_khz == 500)  { bw_setting = 0x90U; valid = true; }
+
+    if (!valid) return;
+
+    writeRegister(0x01, 0x81U);
+    vTaskDelay(pdMS_TO_TICKS(5));
+
+    uint8_t current_config = readRegister(0x1D);
+    current_config = static_cast<uint8_t>(current_config & 0x0FU);
+    current_config = static_cast<uint8_t>(current_config | bw_setting);
+
+    writeRegister(0x1D, current_config);
+    writeRegister(0x01, 0x85U);
+    ESP_LOGI(TAG, "Modem bandwidth dynamically shifted to %lu kHz.", (unsigned long)bw_khz);
 }
 
 esp_err_t LoraController::transmitFrame(const uint8_t* buffer, uint8_t length) {
@@ -171,7 +218,7 @@ void LoraController::run() {
             uint32_t irqFlags = readRegister(0x12);
             writeRegister(0x12, static_cast<uint8_t>(irqFlags));
 
-            if ((irqFlags & 0x40U) != 0U) { // RxDone
+            if ((irqFlags & 0x40U) != 0U) { // RxDone Flag
                 LoraPacket packet = {};
                 packet.length = readRegister(0x13);
 
@@ -181,12 +228,33 @@ void LoraController::run() {
                 for (uint8_t i = 0; i < packet.length; i++) {
                     packet.payload[i] = readRegister(0x00);
                 }
-
+                // Calculate the telemetry data
                 packet.rssi = static_cast<int8_t>(static_cast<int>(readRegister(0x1A)) - 157);
                 packet.snr  = static_cast<int8_t>(static_cast<int>(readRegister(0x1B)) / 4);
 
-                ESP_LOGI(TAG, "Incoming frame packet received! Size: %u bytes, RSSI: %d dBm, SNR: %d dB",
-                    packet.length, packet.rssi, packet.snr);
+                // LIVE-AUSGABE DIREKT AUF DIE CONSOLE (Garantiert un-gemutet!)
+                printf("\r\n--------------------------------------------------\r\n");
+                printf("[LoRa RX] Paket erfolgreich empfangen!\r\n");
+                printf("  Laenge: %u Bytes\r\n", packet.length);
+                printf("  RSSI  : %d dBm (Signalstaerke)\r\n", packet.rssi);
+                printf("  SNR   : %d dB  (Rauschabstand)\r\n", packet.snr);
+                //ESP_LOGI(TAG, "Incoming frame packet received! Size: %u bytes, RSSI: %d dBm, SNR: %d dB",
+                //    packet.length, packet.rssi, packet.snr);
+
+                // ASCII-Klartext-Ausgabe für das Terminal formatiert
+                printf("  Inhalt: \"");
+                for (uint8_t i = 0; i < packet.length; i++) {
+                    char c = static_cast<char>(packet.payload[i]);
+                    // Nur druckbare Zeichen ausgeben, um das Terminal nicht zu verwirren
+                    if (c >= 32 && c <= 126) {
+                        printf("%c", c);
+                    } else {
+                        printf("."); // Punkt für nicht-druckbare Binärbytes
+                    }
+                }
+                printf("\"\r\n--------------------------------------------------\r\n");
+                printf("%s # ", Config::PROJECT_TITLE); // CLI-Prompt wiederherstellen
+                fflush(stdout);
 
                 // FIXED: Uses the new parameter order (line first, text second)
                 if (display != nullptr) {

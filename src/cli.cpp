@@ -18,11 +18,13 @@
 #include "driver/uart.h"
 #include "esp_log.h"
 #include "config.hpp"
+#include "lora.hpp"
 
 static const char* TAG = "CLI";
 static i2c* i2c_bus = nullptr;
 static LedController* led_system = nullptr;
 static DisplayController* oled_display = nullptr;
+static LoraController* lora_system = nullptr;
 
 #define CLI_UART_PORT UART_NUM_0
 #define BUF_SIZE 1024
@@ -49,6 +51,10 @@ void cli_init(i2c* bus_pointer, LedController* led_pointer, DisplayController* d
     oled_display = display_pointer;
 }
 
+
+void cli_init_lora(LoraController* lora_pointer) {
+    lora_system = lora_pointer;
+}
 /**
  * @brief Software timer callback task executed once terminal interaction has gone stale.
  * @param xTimer Handle tracking the specific FreeRTOS timing token instance.
@@ -82,6 +88,8 @@ void process_command(const char* cmd) {
         printf("  mute <sec>         - Set custom logging timeout (Current: %lus)\r\n", (unsigned long)current_mute_time_sec);
         printf("  blink <int> <puls> - Set LED profile in ms (e.g. blink 1000 50)\r\n");
         printf("  oled <line> <txt>  - Print text to OLED line 0-7 (e.g. oled 0 Test)\r\n");
+        printf("  freq <hz>          - Set dynamic radio frequency (433 / 868 MHz bounds)\r\n");
+        printf("  bw <62|125|250|500>- Set dynamic LoRa bandwidth in kHz\r\n");
         printf("  i2c                - Scan the configured I2C bus infrastructure\r\n");
     }
     else if (strcmp(cmd, "version") == 0) {
@@ -107,8 +115,7 @@ void process_command(const char* cmd) {
                     xTimerStop(silence_timer, pdMS_TO_TICKS(10));
                 }
                 printf("Success: Infinite mute activated. Debug logs are permanently suppressed.\r\n");
-            }
-            else {
+            } else {
                 // DYNAMIC TIMEOUT: Extracted multiplication step to decouple constant values from structural macros
                 uint32_t timeout_ms = current_mute_time_sec * 1000;
 
@@ -145,6 +152,53 @@ void process_command(const char* cmd) {
             }
         } else {
             printf("Usage error: Please specify parameters as 'blink <interval_ms> <pulse_width_ms>'\r\n");
+        }
+    }
+    else if (strncmp(cmd, "freq ", 5) == 0) {
+        uint32_t target_freq_hz = 0;
+        if (sscanf(cmd + 5, "%lu", &target_freq_hz) == 1) {
+            // Validate limits to protect the SX1276 front-end (e.g., 410 MHz to 525 MHz)
+            bool valid_433 = (target_freq_hz >= 430000000 && target_freq_hz <= 440000000);
+            bool valid_868 = (target_freq_hz >= 863000000 && target_freq_hz <= 870000000);
+
+            if (valid_433 || valid_868) {
+                if (lora_system != nullptr) {
+                    // SX1276 formula: Frf = Ffreq * 2^19 / 32000000
+                    // Using double to prevent truncation during division before bit masking
+                    double fraction = (static_cast<double>(target_freq_hz) * 524288.0) / 32000000.0;
+                    uint32_t frf = static_cast<uint32_t>(fraction);
+
+                    uint8_t msb = static_cast<uint8_t>((frf >> 16) & 0xFFU);
+                    uint8_t mid = static_cast<uint8_t>((frf >> 8) & 0xFFU);
+                    uint8_t lsb = static_cast<uint8_t>(frf & 0xFFU);
+
+                    lora_system->setFrequency(msb, mid, lsb);
+                    printf("Success: Frequency shifted to %lu Hz.\r\n", (unsigned long)target_freq_hz);
+                } else {
+                    printf("Error: LoraController handle is uninitialized.\r\n");
+                }
+            } else {
+                printf("Error: Frequency out of boundaries 430-440 / 863-870 MHz band limits.\r\n");
+            }
+        } else {
+            printf("Usage error: Please specify parameters as 'freq <frequency_in_hz>'\r\n");
+        }
+    }
+    else if (strncmp(cmd, "bw ", 3) == 0) {
+        uint32_t target_bw = 0;
+        if (sscanf(cmd + 3, "%lu", &target_bw) == 1) {
+            if (target_bw == 62 || target_bw == 125 || target_bw == 250 || target_bw == 500) {
+                if (lora_system != nullptr) {
+                    lora_system->setBandwidth(target_bw);
+                    printf("Success: Dispatched bandwidth configuration update to %lu kHz.\r\n", (unsigned long)target_bw);
+                } else {
+                    printf("Error: LoraController handle is uninitialized.\r\n");
+                }
+            } else {
+                printf("Error: Invalid choice. Supported bandwidth options are: 62, 125, 250, 500.\r\n");
+            }
+        } else {
+            printf("Usage error: Please specify parameter as 'bw <62|125|250|500>'\r\n");
         }
     }
     else if (strncmp(cmd, "oled ", 5) == 0) {
