@@ -13,6 +13,7 @@
 #include "i2c.hpp"
 #include "led.hpp"
 #include "display.hpp"
+#include "lora.hpp"
 
 /**
  * @brief Store peripheral, display, and hardware tracking references for CLI access.
@@ -21,6 +22,12 @@
  * @param display_pointer Pointer to the active tracking system OLED instance.
  */
 void cli_init(i2c* bus_pointer, LedController* led_pointer, DisplayController* display_pointer);
+
+/**
+ * @brief Connects the asynchronous LoRa subsystem reference context back onto the interface layer.
+ * @param lora_pointer Active LoRa transceiver module controller layer instance.
+ */
+void cli_init_lora(LoraController* lora_pointer);
 
 /**
  * @brief Registers the background tasks and setup routines for core runtime execution.

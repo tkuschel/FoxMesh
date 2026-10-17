@@ -19,6 +19,7 @@
 #include "cli.hpp"
 #include "i2c.hpp"
 #include "display.hpp" // FIXED: Added missing header for DisplayController
+#include "lora.hpp"
 
 /**
  * @brief Global log categorization tag context for the main application loader.
@@ -34,6 +35,11 @@ i2c* i2c_bus = nullptr;
  * @brief Global pointer tracking the asynchronous isolated OLED render controller instance.
  */
 DisplayController* display = nullptr;
+
+/**
+ * @brief Global pointer tracking the Semtech SX1276 core radio frquency
+*/
+LoraController* lora_module = nullptr;
 
 /**
  * @brief Static singleton instance governing hardware status LED blink patterns.
@@ -103,6 +109,20 @@ extern "C" {
 
         // Spin up the background console interface thread on Core 0
         start_cli_task();
+
+        // LORA initialization and activation
+        lora_module = new LoraController();
+
+        if (lora_module != nullptr) {
+            //connects the lora instance with the CLI control directly (commands freq and bw)
+            cli_init_lora(lora_module);
+
+            // start the radio task strict to the Core 1 (Priority 6)
+            lora_module->startTask(6);
+            ESP_LOGI(TAG, "LoRa subsystem successfully activated on Core 1.");
+        } else {
+            ESP_LOGI(TAG, "Critical: Failed to allocate memory for LoraController!");
+        }
 
         // Trigger synchronous welcome splash screen frame
         if (display != nullptr) {
