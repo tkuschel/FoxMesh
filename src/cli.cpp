@@ -155,7 +155,7 @@ void process_command(const char* cmd) {
         if (sscanf(cmd + 5, "%lu %63[^\r\n]", &targetLine, textBuffer) == 2) {
             if (targetLine <= 7) {
                 if (oled_display != nullptr) {
-                    oled_display->printMessage(textBuffer, static_cast<uint8_t>(targetLine));
+                    oled_display->printMessage(static_cast<uint8_t>(targetLine), textBuffer);
                     printf("Success: Dispatched text '%s' to OLED line %lu.\r\n", textBuffer, (unsigned long)targetLine);
                 } else {
                     printf("Error: DisplayController handle is uninitialized.\r\n");
@@ -237,11 +237,13 @@ static void cli_worker_task(void *pvParameters) {
                 printf("\b \b");
                 fflush(stdout);
             }
-            // Sanitize and append plain terminal symbols into processing context
-            else if (data >= 32 && data <= 126 && buffer_index < (BUF_SIZE - 1)) {
+            // Sanitize and append terminal symbols (including UTF-8 multi-byte characters like German Umlaute)
+            else if (((data >= 32 && data <= 126) || data >= 128) && buffer_index < (BUF_SIZE - 1)) {
                 line_buffer[buffer_index++] = static_cast<char>(data);
                 printf("%c", data);
-                fflush(stdout);
+                //fflush(stdout);
+                // direct write into uart buffer, used for utf-8
+                //uart_write_bytes(CLI_UART_PORT, &data, 1);
             }
         }
         // Structural task yields preventing internal stack watchdog violations

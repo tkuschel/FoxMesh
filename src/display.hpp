@@ -31,16 +31,16 @@ public:
 
     /**
      * @brief Thread-safe non-blocking method to print a message to the OLED display.
-     * @param text Null-terminated string message (maximum 20 characters for simple lines).
      * @param line Destination line identifier index (0 to 7 for page addressing mode).
+     * @param text Null-terminated string message (maximum 20 characters for simple lines).
      */
-    void printMessage(const char* text, uint8_t line);
+    void printMessage(uint8_t line, const char* text);
 
 private:
     // Internal structure mapping the safe asynchronous data pipeline
     struct DisplayMessage {
-        char content[24];
         uint8_t targetLine;
+        char content[24];
     };
 
     i2c* m_bus;

@@ -112,18 +112,30 @@ static const uint8_t font_5x7[][5] = {
     {0x44, 0x28, 0x10, 0x28, 0x44}, // 120 x
     {0x0c, 0x50, 0x50, 0x50, 0x3c}, // 121 y
     {0x44, 0x64, 0x54, 0x4c, 0x44}, // 122 z
-    {0x00, 0x08, 0x36, 0x41, 0x00}, // 123 \{
+    {0x00, 0x08, 0x36, 0x41, 0x00}, // 123 {
     {0x00, 0x00, 0x77, 0x00, 0x00}, // 124 |
-    {0x00, 0x41, 0x36, 0x08, 0x00}, // 125 \}
+    {0x00, 0x41, 0x36, 0x08, 0x00}, // 125 }
     {0x08, 0x08, 0x2a, 0x1c, 0x08}, // 126 ~
     // German Umlaute mappings
-    {0x7d, 0x11, 0x11, 0x11, 0x7d}, // 127 Ä
-    {0x3c, 0x41, 0x41, 0x41, 0x3c}, // 128 Ö
-    {0x3d, 0x40, 0x40, 0x40, 0x3d}, // 129 Ü
-    {0x20, 0x55, 0x54, 0x54, 0x78}, // 130 ä
-    {0x38, 0x54, 0x54, 0x54, 0x38}, // 131 ö
-    {0x3c, 0x40, 0x40, 0x20, 0x7c}, // 132 ü
-    {0x7f, 0x49, 0x49, 0x36, 0x20}  // 133 ß
+//    {0x7d, 0x11, 0x11, 0x11, 0x7d}, // 127 Ä
+//    {0x3c, 0x41, 0x41, 0x41, 0x3c}, // 128 Ö
+//    {0x3d, 0x40, 0x40, 0x40, 0x3d}, // 129 Ü
+//    {0x20, 0x55, 0x54, 0x54, 0x78}, // 130 ä
+//    {0x38, 0x54, 0x54, 0x54, 0x38}, // 131 ö
+//    {0x3c, 0x40, 0x40, 0x20, 0x7c}, // 132 ü
+//    {0x7f, 0x49, 0x49, 0x36, 0x20}  // 133 ß
+    // new German  Umlaute mapping (5x7/5x8 Font Matrix)
+    {0,0,0,0,0}, //127 not allowed
+    {0x7d, 0x13, 0x13, 0x13, 0x7d}, // 128 Ä
+    {0x3c, 0x43, 0x43, 0x43, 0x3c}, // 129 Ö
+    {0x3d, 0x42, 0x42, 0x42, 0x3d}, // 130 Ü
+    {0x20, 0x55, 0x54, 0x54, 0x78}, // 131 ä
+    {0x38, 0x55, 0x55, 0x55, 0x38}, // 132 ö
+    {0x3c, 0x42, 0x42, 0x22, 0x7c}, // 133 ü
+    {0x7f, 0x49, 0x49, 0x36, 0x00}, // 134 ß (Letzte Spalte auf 0x00 bereinigt)
+//    {0x3c, 0x42, 0x51, 0x4a, 0x34}  // 134 © Copyright
+//    {0x3c, 0x42, 0x4d, 0x4d, 0x32} // 135
+    {0x3c, 0x42, 0x95, 0x95, 0x52}
 };
 
 /**
@@ -255,7 +267,7 @@ void DisplayController::startTask(uint32_t priority) {
  * @param text Pointer to a standard null-terminated sequence of tracking information.
  * @param line Selected hardware page index mapping from 0 to 7.
  */
-void DisplayController::printMessage(const char* text, uint8_t line) {
+void DisplayController::printMessage(uint8_t line, const char* text) {
     if (m_msgQueue == nullptr || text == nullptr) return;
 
     DisplayMessage msg = {};
@@ -321,19 +333,20 @@ void DisplayController::run() {
                     uint8_t c_secondary = static_cast<uint8_t>(incoming.content[i + 1]);
                     i++; // Advance the pointer to consume the compound UTF-8 token pair
 
-                    if (c_secondary == 0x84) { fontIndex = 95;  validCharacter = true; } // Ä
-                    if (c_secondary == 0x96) { fontIndex = 96;  validCharacter = true; } // Ö
-                    if (c_secondary == 0x9C) { fontIndex = 97;  validCharacter = true; } // Ü
-                    if (c_secondary == 0xA4) { fontIndex = 98;  validCharacter = true; } // ä
-                    if (c_secondary == 0xB6) { fontIndex = 99;  validCharacter = true; } // ö
-                    if (c_secondary == 0xBC) { fontIndex = 100; validCharacter = true; } // ü
+                    if (c_secondary == 0x84) { fontIndex = 96;  validCharacter = true; } // Ä
+                    if (c_secondary == 0x96) { fontIndex = 97;  validCharacter = true; } // Ö
+                    if (c_secondary == 0x9C) { fontIndex = 98;  validCharacter = true; } // Ü
+                    if (c_secondary == 0xA4) { fontIndex = 99;  validCharacter = true; } // ä
+                    if (c_secondary == 0xB6) { fontIndex = 100;  validCharacter = true; } // ö
+                    if (c_secondary == 0xBC) { fontIndex = 101; validCharacter = true; } // ü
                 }
                 else if (c_primary == 0xC2 && (i + 1) < textLength) {
                     uint8_t c_secondary = static_cast<uint8_t>(incoming.content[i + 1]);
                     i++;
-                    if (c_secondary == 0x9F) { fontIndex = 101; validCharacter = true; } // ß
+                    if (c_secondary == 0x9F) { fontIndex = 102; validCharacter = true; } // ß
+                    if (c_secondary == 0xA9) { fontIndex = 103; validCharacter = true; } // ©
                 }
-                else if (c_primary >= 32 && c_primary <= 126) {
+                else if ((c_primary >= 32 && c_primary <= 126) || (c_primary > 127 && c_primary <= 135)) {
                     fontIndex = static_cast<size_t>(c_primary - 32);
                     validCharacter = true;
                 }
