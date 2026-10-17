@@ -1,5 +1,20 @@
-# PlatformIO
-.pio
+# =============================================================================
+# Project:       FoxMesh
+# Author:        Tom OE3TKT
+# Target:        Git Ignore Configuration (.gitignore)
+# =============================================================================
 
-# VSCodium / VS Code
-.vscode
+# --- PlatformIO & ESP-IDF Build Artifacts ---
+.pio/
+sdkconfig
+sdkconfig.*
+!sdkconfig.defaults
+
+# --- IDE Configurations (VS Code / VSCodium) ---
+.vscode/
+
+# --- Local Environment & Backups ---
+.env
+*.~
+*.bak
+*.swp
