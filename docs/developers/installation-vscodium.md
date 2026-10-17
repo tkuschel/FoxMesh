@@ -2,11 +2,11 @@
 
 ## Installation of VSCodium (Visual Studio Code)
 
-I prefer the installation of VSCodium, it is an excellent, privacy-focused alternative to Microsoft Visual Studio (VS Code) as it completely eliminatess telemtry, tracking, and proprietary Microsoft licenses.
+I prefer the installation of VSCodium, it is an excellent, privacy-focused alternative to Microsoft Visual Studio (VS Code) as it completely eliminates telemetry, tracking, and proprietary Microsoft licenses.
 
 However, setting up VSCodium with PlatformIO introduces a major technical hurdle:
 Microsoft explicitly restricts the use of its official C/C++ extension (ms-vscode.cpptools) to official Microsoft product distributions.
-Because PlatformIO relies heavily on this extension for code completion, debugging, and naviagation, you cannot simply download everything directly from VSCodium's default extension marketplace.
+Because PlatformIO relies heavily on this extension for code completion, debugging, and navigation, you cannot simply download everything directly from VSCodium's default extension marketplace.
 
 The following guide walks you through the proven workflows to successfully install and run PlatformIO on VSCodium.
 
@@ -18,13 +18,13 @@ This method keeps your VSCodium completely decoupled from Microsoft's marketplac
 Ensure **Python 3** and **Git** are installed on your system.
 PlatformIO uses them under the hood to manage libraries and compile code.
 
-* Linux Users: You must also install the `python3-venv` packatge via your package manager (e.g. `sudo apt install python3-venv`).
-On **Arch Linux** the core `python` package (installed via `sudo pacman -S python`) **already includes the standard libryre `venv` module by default**.
+* Linux Users: You must also install the `python3-venv` package via your package manager (e.g. `sudo apt install python3-venv`).
+On **Arch Linux** the core `python` package (installed via `sudo pacman -S python`) **already includes the standard library `venv` module by default**.
 
 ### 2. Download the Required Extensions
 
 Because of license restrictions, the required versions are not available on VSCodium's default *Open-VSX* registry.
-You need to grap them from the official Visual Studio Marketplace:
+You need to grab them from the official Visual Studio Marketplace:
 
 1. Go to the Microsoft C/C++ Extension Page.
 On the right-hand side under *Resources*, click **Download Extensions** to save the `.vsix` file.

@@ -13,7 +13,9 @@ Interestingly, this error **does not occur** when triggering the build inside th
 This behavior is caused by a **Python environment collision** on your local Linux system. 
 
 * **Inside the IDE (Success):** VS Code automatically sandboxes the execution path. It activates PlatformIO's isolated virtual environment (located at `~/.platformio/penv/`), ensuring that only the internally shipped, compatible dependencies are used.
-* **Inside the System Terminal (Failure):** When calling `pio` globally, your shell utilizes the system's global Python environment. If global Python packages or system-wide SCons modules are present (e.g., installed via `apt`, `dnf`, or `pacman`), they collide with the PlatformIO Core engine. This breaks internal lookup paths, causing the compilation to miss the required `FortranCommon` module during the binary linking process.
+* **Inside the System Terminal (Failure):** When calling `pio` globally, your shell utilizes the system's global Python environment.
+If global Python packages or system-wide SCons modules are present (e.g., installed via `apt`, `dnf`, or `pacman`), they collide with the PlatformIO Core engine.
+This breaks internal lookup paths, causing the compilation to miss the required `FortranCommon` module during the binary linking process.
 
 ### Solution
 
