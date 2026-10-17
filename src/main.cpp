@@ -1,3 +1,13 @@
+/**
+ * @file main.cpp
+ * @brief Main application entry point for the FoxMesh tracking node
+ * @author OM Tom (OE3TKT)
+ * 
+ * @license SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 OM Tom (OE3TKT)
+ * For the full license terms, see the LICENSE file in the project root.
+ */
+
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -7,18 +17,26 @@
 #include "config.hpp"
 #include "led.hpp"
 #include "cli.hpp"
-#include "display.hpp"  // thread-safe display
+#include "i2c.hpp"
+#include "display.hpp" // FIXED: Added missing header for DisplayController
 
 static const char *TAG = "MAIN";
 
-// Global singleton instances for hardware abstraction
-static DisplayController oled;
+// Global pointer to the thread-safe hardware abstraction instances
+i2c* i2c_bus = nullptr;
+DisplayController* display = nullptr;
+
+// Global singleton instances for hardware abstraction layers
 static LedController led(Config::LED_GPIO_PIN);
 
+/**
+ * @brief Initializes the physical SPI peripheral for the Semtech SX1276 transceiver.
+ * 
+ * Configures VSPI (SPI3_HOST) using strict compile-time configurations from config.hpp.
+ */
 void init_lora_spi(void) {
     esp_err_t ret;
 
-    // Configure the SPI structure using the strict C++ constexpr constants
     spi_bus_config_t buscfg = {};
     buscfg.mosi_io_num = Config::LORA_MOSI_PIN;
     buscfg.miso_io_num = Config::LORA_MISO_PIN;
@@ -27,7 +45,7 @@ void init_lora_spi(void) {
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
 
-    // Initialize the physical peripheral (VSPI / SPI3 on ESP32)
+    // Initialize the physical peripheral bus with automatic DMA channel assignment
     ret = spi_bus_initialize(SPI3_HOST, &buscfg, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
@@ -36,42 +54,47 @@ void init_lora_spi(void) {
     ESP_LOGI(TAG, "SPI bus initialized successfully on VSPI (SPI3)");
 }
 
-// Fixed: Only ONE app_main exists now, marked as extern "C" for ESP-IDF bootloader
-extern "C" void app_main(void) {
-    // Dynamic string formatting using type-safe constants
-    ESP_LOGI(TAG, "=================================================");
-    ESP_LOGI(TAG, " Booting %s (Version: %s) via ESP-IDF C++",
+// Global application anchor marked as extern "C" for the native ESP-IDF bootloader
+extern "C" {
+    void app_main(void) {
+        // Output system banner configuration parameters on boot
+        ESP_LOGI(TAG, "=================================================");
+        ESP_LOGI(TAG, " Booting %s (Version: %s) via ESP-IDF C++",
             Config::PROJECT_TITLE,
             Config::PROJECT_VERSION);
-    ESP_LOGI(TAG, " (c) Authors: %s", Config::PROJECT_AUTHORS);
-    ESP_LOGI(TAG, "=================================================");
+        ESP_LOGI(TAG, " (c) Authors: %s", Config::PROJECT_AUTHORS);
+        ESP_LOGI(TAG, "=================================================");
 
-    // Explicitly power up the onboard peripherals on TTGO T3
-//    gpio_reset_pin(GPIO_NUM_16); 
-//    gpio_set_direction(GPIO_NUM_16, GPIO_MODE_OUTPUT);
-    // Hard reset of the OLED display
-//    gpio_set_level(GPIO_NUM_16, 0);
- //   vTaskDelay(pdMS_TO_TICKS(50));  // 50ms in Reset
+        // Launch background blink task
+        led.startTask();
 
-//    gpio_set_level(GPIO_NUM_16, 1); // Set HIGH to enable OLED power rails
-//    vTaskDelay(pdMS_TO_TICKS(100));  // Give the hardware 100ms to stabilize voltage
+        // Dynamically instantiate the synchronized I2C master bus
+        i2c_bus = new i2c(Config::OLED_SDA_PIN, Config::OLED_SCL_PIN, Config::OLED_I2C_FREQ_HZ);
 
-    led.startTask();
+        // Instantiate and activate the isolated background render worker on Core 0
+        display = new DisplayController(i2c_bus);
+        display->startTask(); 
 
-    start_cli_task();
+        // Pass the bus instance dependency to the interactive terminal layer
+        cli_init(i2c_bus, &led, display);
 
-    oled.startTask();
+        // Initialize the Semtech LoRa SPI connection layer
+        init_lora_spi();
 
+        // Spin up the background console interface thread on Core 0
+        start_cli_task();
 
-    // Synchronous test push to the display queue
-//    oled.printMessage("Mesh Scanning...", 2);
+        // Trigger synchronous welcome splash screen frame
+        display->printMessage("FoxMesh Ready", 0);
 
-    // Sytem Monitor Loop
-    while (true) {
-        ESP_LOGI(TAG, "[%s v%s] Operational. Free Heap: %lu bytes",
+        // Main system watchdog and status monitor loop
+        while (true) {
+            ESP_LOGI(TAG, "[%s v%s] Operational. Free Heap: %lu bytes",
                  Config::PROJECT_TITLE,
                  Config::PROJECT_VERSION,
                  (unsigned long)esp_get_free_heap_size());
-        vTaskDelay(pdMS_TO_TICKS(5000));
+                 
+            vTaskDelay(pdMS_TO_TICKS(5000));
+        }
     }
 }

@@ -1,0 +1,17 @@
+/**
+ * @file .editorconfig
+ * @brief Global editor configuration profile enforcing whitespace and newline standards for FoxMesh
+ * @author OM Tom (OE3TKT)
+ *
+ * @license SPDX-License-Identifier: MIT
+ * @copyright Copyright (c) 2026 OM Tom (OE3TKT)
+ * For the full license terms, see the LICENSE file in the project root.
+ */
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true

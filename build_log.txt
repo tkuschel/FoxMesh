@@ -1,0 +1,46 @@
+Processing ttgo-lora32-v21 (platform: espressif32; board: ttgo-lora32-v21; framework: espidf)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/ttgo-lora32-v21.html
+PLATFORM: Espressif 32 (2026.2.30) > TTGO LoRa32-OLED v2.1.6
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - contrib-piohome @ 3.4.4 
+ - framework-espidf @ 3.50304.0 (5.3.4) 
+ - tool-cmake @ 4.0.3 
+ - tool-esp-rom-elfs @ 2024.10.11 
+ - tool-esptoolpy @ 5.1.2 
+ - tool-ninja @ 1.13.1 
+ - tool-scons @ 4.40801.0 (4.8.1) 
+ - toolchain-xtensa-esp-elf @ 15.1.0+20250607
+Reading CMake configuration...
+Generating assembly for certificate bundle...
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 0 compatible libraries
+Scanning dependencies...
+No dependencies
+Building in release mode
+Retrieved `.pio/build/ttgo-lora32-v21/src/cli.cpp.o' from cache
+Retrieved `.pio/build/ttgo-lora32-v21/src/display.cpp.o' from cache
+Compiling .pio/build/ttgo-lora32-v21/src/display1.cpp.o
+Retrieved `.pio/build/ttgo-lora32-v21/src/i2c.cpp.o' from cache
+Retrieved `.pio/build/ttgo-lora32-v21/src/led.cpp.o' from cache
+Retrieved `.pio/build/ttgo-lora32-v21/src/main.cpp.o' from cache
+Retrieved `.pio/build/ttgo-lora32-v21/esp-idf/esp_system/ld/memory.ld.in' from cache
+Retrieved `.pio/build/ttgo-lora32-v21/esp-idf/esp_system/ld/sections.ld.in' from cache
+Retrieved `.pio/build/ttgo-lora32-v21/memory.ld' from cache
+src/display1.cpp:120:5: error: expected '}' before '{' token
+  120 |     {0x7d, 0x11, 0x11, 0x11, 0x7d}, // 127 Ä
+      |     ^
+src/display1.cpp:23:38: note: to match this '{'
+   23 | static const uint8_t font_5x7[][5] = {
+      |                                      ^
+src/display1.cpp:120:5: note: probably missing a comma or an operator before
+  120 |     {0x7d, 0x11, 0x11, 0x11, 0x7d}, // 127 Ä
+      |     ^
+Retrieved `.pio/build/ttgo-lora32-v21/app_trace/app_trace.c.o' from cache
+Retrieved `.pio/build/ttgo-lora32-v21/app_trace/app_trace_util.c.o' from cache
+*** [.pio/build/ttgo-lora32-v21/src/display1.cpp.o] Error 1
+========================= [FAILED] Took 10.67 seconds =========================
