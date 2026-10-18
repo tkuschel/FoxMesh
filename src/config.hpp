@@ -50,18 +50,39 @@ namespace Config {
     constexpr uint32_t LORA_DEFAULT_FREQ_HZ = 433175000;
     constexpr uint32_t LORA_DEFAULT_BW_KHZ  = 250;
     constexpr uint8_t  LORA_DEFAULT_SF      = 11;
-    constexpr uint8_t  LORA_DEFAULT_CR      = 6; // CR 4/6 -> Nenner ist 6
+    constexpr uint8_t  LORA_DEFAULT_CR      = 6; // CR 4/6 -> Denominator is 6
 
-    // Der Compiler berechnet das 24-Bit Frequenzwort automatisch vor!
+    // Predefined LoRa Sync Word options for hardware correlation filtering
+    constexpr uint8_t LORA_SYNC_WORD_PUBLIC_NETWORK_MODE       = 0x34; // MeshCom (ÖVSV standard for amateur radio mesh),
+                                                                       // The Things Network, Helium
+    constexpr uint8_t LORA_SYNC_WORD_TACTICAL_NETWORK_MODE     = 0x24; // Meshtastic (Civilian off-grid tactical mesh network)
+    constexpr uint8_t LORA_SYNC_WORD_PRIVATE_NETWORK_MODE      = 0x12; // Semtech Default (Factory default / Private point-to-point)
+    constexpr uint8_t LORA_SYNC_WORD_CUSTOM_NETWORK_MODE       = 0x55; // Custom / Experimental individual networks (highly isolated)
+    constexpr uint8_t LORA_SYNC_WORD_EXPERIMENTAL_NETWORK_MODE = 0xAA; // Custom / Experimental individual networks (highly isolated)
+
+    // Active hardware synchronization configuration selector
+    constexpr uint8_t LORA_SYNC_WORD   = LORA_SYNC_WORD_PUBLIC_NETWORK_MODE; // Selected default synchronization profile
+
+    // Expand hardware preamble length to 12 symbols for robust network correlation (MeshCom value)
+    constexpr uint8_t LORA_PREAMBLE_LENGTH_LSB                 = 0x0C; // Semtech Factor Default is 0x08
+
+    // The compiler automatically pre-calculates the 24-bit frequency word at compile-time!
     constexpr uint64_t LORA_FRF_CALC      = ((uint64_t)LORA_DEFAULT_FREQ_HZ << 19) / 32000000ULL;
     constexpr uint8_t LORA_FRF_MSB        = static_cast<uint8_t>((LORA_FRF_CALC >> 16) & 0xFFU);
     constexpr uint8_t LORA_FRF_MID        = static_cast<uint8_t>((LORA_FRF_CALC >> 8) & 0xFFU);
     constexpr uint8_t LORA_FRF_LSB        = static_cast<uint8_t>(LORA_FRF_CALC & 0xFFU);
 
-    // Berechne die Register-Hexwerte dynamisch basierend auf den obigen Angaben
-    // BW: 250kHz -> 0x08. Shiften um 4 Bits nach links = 0x80. Coding Rate 4/6 -> 6-4 = 2 -> (2 << 1) = 0x04. Gesamt = 0x84.
-    constexpr uint8_t LORA_MODEM_CONFIG_1 = 0x84;
-    // SF11 -> 0x0B. Shiften um 4 Bits nach links = 0xB0. CRC On = 0x04. Gesamt = 0xB4.
-    constexpr uint8_t LORA_MODEM_CONFIG_2 = 0xB4;
+    // --- DYNAMIC COMPILE-TIME BIT-SHIFTING EXPRESSIONS ---
 
+    // Helper to map bandwidth kHz to Semtech Register Bits (7-4 of RegModemConfig1)
+    constexpr uint8_t LORA_BW_REG_VAL = (LORA_DEFAULT_BW_KHZ == 62)  ? 0x06 :
+                                        (LORA_DEFAULT_BW_KHZ == 125) ? 0x07 :
+                                        (LORA_DEFAULT_BW_KHZ == 250) ? 0x08 :
+                                        (LORA_DEFAULT_BW_KHZ == 500) ? 0x09 : 0x08;
+
+    // RegModemConfig1 (0x1D): Bandwidth (Bits 7-4), Coding Rate (Bits 3-1), ImplicitHeader (Bit 0 = 0)
+    constexpr uint8_t LORA_MODEM_CONFIG_1 = static_cast<uint8_t>((LORA_BW_REG_VAL << 4) | ((LORA_DEFAULT_CR - 4) << 1));
+
+    // RegModemConfig2 (0x1E): Spreading Factor (Bits 7-4), TxContinuous (Bit 3 = 0), RxPayloadCrcOn (Bit 2 = 1)
+    constexpr uint8_t LORA_MODEM_CONFIG_2 = static_cast<uint8_t>((LORA_DEFAULT_SF << 4) | 0x04U);
 }

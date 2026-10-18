@@ -26,6 +26,12 @@ LoraController::LoraController() {
 
     if (m_isrSemaphore == nullptr || m_stateMutex == nullptr) {
         ESP_LOGE(TAG, "Fatal: Failed to allocate LoRa synchronization primitives.");
+        return;
+    }
+
+    esp_err_t err = initializeHardware();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Fatal: Hardware initialization failed in constructor!");
     }
 }
 
@@ -200,6 +206,21 @@ esp_err_t LoraController::initializeHardware() {
     writeRegister(0x08, Config::LORA_FRF_LSB);
     writeRegister(0x1D, Config::LORA_MODEM_CONFIG_1);
     writeRegister(0x1E, Config::LORA_MODEM_CONFIG_2);
+
+    // --- APPLY SELECTED MESHCOM / NETWORK SYNC PROFILE ---
+    writeRegister(0x39, Config::LORA_SYNC_WORD); // Write the dynamic sync word byte
+
+    // Expand hardware preamble length to 12 symbols for robust network correlation
+    writeRegister(0x20, 0x00U); // RegPreambleMsb - default
+    writeRegister(0x21, Config::LORA_PREAMBLE_LENGTH_LSB); // RegPreambleLsb (12 = 0x0C) - Default start is 0x08
+
+    // --- UNMASK INTERRUPTS ON THE SEMTECH TRANSCEIVER ---
+    // Clear all bits in RegIrqFlagsMask (0x11) to enable all hardware interrupt events.
+    // Note: A set bit (1) in this register would mask (disable) the corresponding interrupt.
+    writeRegister(0x11, 0x00U);
+
+    // Clear any stale interrupt flags to flush the physical DIO0 line back to logic low
+    writeRegister(0x12, 0xFFU);
 
     // Zustand thread-sicher als betriebsbereit markieren
     if (xSemaphoreTake(m_stateMutex, portMAX_DELAY) == pdTRUE) {
@@ -633,7 +654,21 @@ void LoraController::startTask(uint32_t priority) {
 • @brief Primary operational processing thread executing real-time ISR evaluation workflows.
 */
 void LoraController::run() {
-    if (initializeHardware() != ESP_OK) return;
+    //if (initializeHardware() != ESP_OK) return;  // moved to the constructor
+
+    // Check if hardware is ready
+    bool init_success = false;
+    if (xSemaphoreTake(m_stateMutex, portMAX_DELAY) == pdTRUE) {
+        init_success = m_state.isInitialized;
+        xSemaphoreGive(m_stateMutex);
+    }
+
+    if (!init_success) {
+        ESP_LOGE(TAG, "Engine abort: Hardware not initialized.");
+        vTaskDelete(nullptr);
+        return;
+    }
+
     setModeReceiver();
 
     extern DisplayController* display;
