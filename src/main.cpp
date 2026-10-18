@@ -37,7 +37,7 @@ i2c* i2c_bus = nullptr;
 DisplayController* display = nullptr;
 
 /**
- * @brief Global pointer tracking the Semtech SX1276 core radio frquency
+ * @brief Global pointer tracking the Semtech SX1276 core radio frequency
 */
 LoraController* lora_module = nullptr;
 
@@ -130,7 +130,7 @@ extern "C" {
             //display->printMessage(0, "FoxMesh " Config::PROJECT_VERSION " \x86" "OE3TKT");
             snprintf(msg, sizeof(msg), "FoxMesh %s OE3TKT", Config::PROJECT_VERSION);
             display->printMessage(1, msg);
-            display->printMessage(2, "Bärbel frühstückt ©");
+            //display->printMessage(2, "Bärbel frühstückt ©");
         }
         // Main system watchdog and status monitor loop
         while (true) {

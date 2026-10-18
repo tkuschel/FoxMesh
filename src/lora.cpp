@@ -213,6 +213,8 @@ void LoraController::run() {
     setModeReceiver();
     extern DisplayController* display; // Reference the global display singleton
 
+    ESP_LOGI(TAG, "LoRa RX was initialized and is running");
+
     while (true) {
         if (xSemaphoreTake(m_isrSemaphore, portMAX_DELAY) == pdTRUE) {
             uint32_t irqFlags = readRegister(0x12);

@@ -47,10 +47,10 @@ namespace Config {
     constexpr gpio_num_t LORA_IRQ_PIN     = GPIO_NUM_26;
 
     // Semtech SX1276 LoRa Configuration Parameters
-    // 433.175 MHz is calculated by: 433175000 / (32000000 / 2^19) = 7096525 = 0x06C4CD
-    constexpr uint8_t LORA_FRF_MSB        = 0x06;
-    constexpr uint8_t LORA_FRF_MID        = 0xC4;
-    constexpr uint8_t LORA_FRF_LSB        = 0xCD;
+    // 433.175 MHz is calculated by: 433175000 / (32000000 / 2^19) = 7097139.2 = 0x6c4b33 // wrong: 0x06C4CD
+    constexpr uint8_t LORA_FRF_MSB        = 0x6C;
+    constexpr uint8_t LORA_FRF_MID        = 0x4B;
+    constexpr uint8_t LORA_FRF_LSB        = 0x33;
 
     // Modem Config 1: BW 250kHz (0x80), CR 4/6 (0x04), Explicit Header (0x00) -> 0x84
     constexpr uint8_t LORA_MODEM_CONFIG_1 = 0x84;
