@@ -66,6 +66,8 @@ jobs:
           python3 -m pip install --quiet --upgrade pip platformio intelhex
           # Ab hier steht platformio in diesem Schritt zur Verfügung
           pio --version
+          # Fügt den Pfad absolut dem GitHub/Gitea-Pfad hinzu:
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       # 5. Install PlatformIO Core and the required intelhex extension in a single, quiet command
 #      - name: Install PlatformIO Core
