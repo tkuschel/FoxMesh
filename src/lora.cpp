@@ -108,11 +108,26 @@ void LoraController::setFrequency(uint32_t freq_hz) {
     if (xSemaphoreTake(m_stateMutex, portMAX_DELAY) == pdTRUE) {
         m_state.frequencyHz = freq_hz;
 
-        // Translate frequency configuration parameter layouts to register bytes...
-        // writeRegister(0x06, msb); etc.
+        // Force trx into Standby mode to update hardware frequency registers safely
+        uint8_t previousMode = readRegister(0x01); // RegOpMode
+        writeRegister(0x01, (previousMode & 0xF8U) | 0x01U); // Set to Standby (0x01)
+        vTaskDelay(pdMS_TO_TICKS(5));
+
+        // Calculate the 24-bit frequency word using 64-bit precision to avoid intermediate overflow
+        // Formula: FRF = (freq_hz * 2^19) / 32 000 000
+        uint64_t frf = ((uint64_t)freq_hz << 19) / 32000000ULL;
+
+        // Split the 24-bit tracking token across the three consecutive hardware registers
+        writeRegister(0x06, static_cast<uint8_t>((frf >> 16) & 0xFFU)); // RegFrfMsb
+        writeRegister(0x07, static_cast<uint8_t>((frf >> 8) & 0xFFU));  // RegFrfMid
+        writeRegister(0x08, static_cast<uint8_t>(frf & 0xFFU));         // RegFrfLsb
+
+        writeRegister(0x01, previousMode);
 
         xSemaphoreGive(m_stateMutex);
-        ESP_LOGI(TAG, "Frequency updated to %lu Hz", (unsigned long)freq_hz);
+
+        // High-precision formatted terminal trace showing both decimal and uppercase 24-bit hex configurations
+        ESP_LOGI(TAG, "Frequency updated to %lu Hz (0x%06X)", (unsigned long)freq_hz, (unsigned int)frf);
     }
 }
 
@@ -269,8 +284,8 @@ void LoraController::sortListChronologically() {
  * @brief Safely clones active database tracks within temporary storage allocations to protect ongoing engine execution.
  * @return A deep copy duplicate containing isolated copies of the tracked packet records database tracking array.
  */
-std::list LoraController::getPacketListCopy() {
-    std::list listCopy;
+std::list<LoraPacketNode> LoraController::getPacketListCopy() {
+    std::list<LoraPacketNode> listCopy;
     if (xSemaphoreTake(m_stateMutex, portMAX_DELAY) == pdTRUE) {
         listCopy = m_state.packetList;
         xSemaphoreGive(m_stateMutex);
@@ -347,7 +362,7 @@ esp_err_t LoraController::transmitFrame(const uint8_t* buffer, uint8_t length) {
  * @brief Core trampoline context function remapping FreeRTOS pointer entries back into our object instances.
  * @param pvParameters Object execution context tracking reference token.
  */
-void LoraController::taskTrampoline(void pvParameters) {
+void LoraController::taskTrampoline(void* pvParameters) {
     auto* instance = static_cast<LoraController*>(pvParameters);
     if (instance != nullptr) {
         instance->run();

@@ -19,14 +19,10 @@
  * @brief Simple internal abstraction layer mirroring the raw incoming packet payload.
  */
 struct LoraPacket {
-    /** @brief High-precision calibrated received signal power in dBm. */
-    float rssi;
-    /** @brief High-precision calibrated signal-to-noise ratio in dB. */
-    float snr;
-    /** @brief Payload size explicitly specified in bytes. */
-    uint8_t length;
-    /** @brief Fixed internal memory buffer capturing raw ingress bytes. Max SX1276 FIFO is 256. */
-    uint8_t payload[256];
+    float rssi;            /**< High-precision calibrated received signal power in dBm. */
+    float snr;             /**< High-precision calibrated signal-to-noise ratio in dB. */
+    uint8_t length;        /**< Payload size explicitly specified in bytes. */
+    uint8_t payload[256];  /**< Fixed internal memory buffer capturing raw ingress bytes. Max SX1276 FIFO is 256. */
 };
 
 /**
@@ -179,4 +175,15 @@ public:
      * @return A standalone, thread-isolated linked list duplicate snapshot copy containing current history rows.
      */
     std::list<LoraPacketNode> getPacketListCopy();
+
+    /**
+     * @brief Generates an atomic, high-performance runtime snapshot of configuration parameters and metrics.
+     * @details This routine performs a rapid, thread-safe memory copy of the volatile tracking state variables.
+     *          Unlike getPacketListCopy(), this method explicitly excludes the heavy heap-allocated packet list data,
+     *          making it exceptionally lightweight and highly suitable for high-frequency UI display refreshes,
+     *          CLI updates, or periodic remote health diagnostics.
+     * @note Acquires the internal synchronization mutex lock momentarily to guarantee structural telemetry alignment.
+     * @return A self-contained snapshot structure mapping the current system hardware configurations and operational counts.
+     */
+     LoraStateSnapshot getSnapshot();
 };
