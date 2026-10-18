@@ -58,7 +58,7 @@ jobs:
             .platformio
             .pio
           key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
-            restore-keys: |
+          restore-keys: |
             ${{ runner.os }}-pio-
 
       # 5. Install PlatformIO Core and the required intelhex extension in a single, quiet command
