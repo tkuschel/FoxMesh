@@ -21,3 +21,4 @@ sdkconfig.*
 
 # --- Log files ---
 build_log.txt
+logs/
