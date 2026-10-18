@@ -44,12 +44,8 @@ jobs:
           CLEAN_BRANCH=$(echo "$RAW_BRANCH" | sed 's/[^a-zA-Z0-9.\-]/_§/g' | sed 's|§|-|g' | sed 's|_||g')
           echo "GIT_BRANCH=$CLEAN_BRANCH" >> $GITHUB_ENV
 
-      # 3. Set up Python environment
-      - name: Set up Python 3.x
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.x'
-
+      #3 Python alread installed
+      - run: python --version
       # 4. Cache global PlatformIO directories, uses a dynamic key based on platformio.ini
       - name: Cache PlatformIO
         uses: actions/cache@v6
