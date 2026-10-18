@@ -47,7 +47,7 @@ void i2c::scan() const {
     }
 
     printf("     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f\r\n");
-    printf("00:          ");
+    printf("00:         ");
 
     int devices_found = 0;
 
