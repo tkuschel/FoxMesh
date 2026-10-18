@@ -78,7 +78,7 @@ struct LoraStateTable {
     // The three 1-byte variables at the bottom align perfectly into a 32-bit slot, leaving minimal trailing padding.
 };
 
-**
+/**
  * @brief Thread-isolated telemetry snapshot for UI displays and remote diagnostics.
  * @note Optimized using "largest-to-smallest" data type ordering to minimize memory padding.
  */
