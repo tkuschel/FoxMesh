@@ -1,4 +1,4 @@
-name: Automated CI Build of FoxMesh
+name: Build of FoxMesh
 
 on:
   push:
@@ -15,13 +15,14 @@ jobs:
   build-and-test:
     runs-on: host
 
-    permissions:
-      contents: write # We want also create official Releases
+  permissions:
+    contents: write # We want also create official Releases
 
-    steps:
-     - run: echo "🎉 The job was automatically triggered by a ${{ gitea.event_name }} event."
-     - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by Gitea!"
-     - run: echo "🔎 The name of your branch is ${{ gitea.ref }} and your repository is ${{ gitea.repository }}."
+  steps:
+    - run: echo "🎉 The job was automatically triggered by a ${{ gitea.event_name }} event."
+    - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by Gitea!"
+    - run: echo "🔎 The name of your branch is ${{ gitea.ref }} and your repository is ${{ gitea.repository }}."
+
     # 1. Checkout the target branch
     - name: Checkout Target branch
       uses: actions/checkout@v7
@@ -58,7 +59,7 @@ jobs:
           ~/.platformio
           .pio
         key: ${{ runner.os }}-pio-${{ hashFiles('**/platformio.ini') }}
-        restore-keys: |
+          restore-keys: |
           ${{ runner.os }}-pio-
 
     # 5. Install PlatformIO Core and the required intelhex extension in a single, quiet command
