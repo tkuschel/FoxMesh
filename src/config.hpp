@@ -44,7 +44,9 @@ namespace Config {
     constexpr gpio_num_t LORA_SCK_PIN     = GPIO_NUM_5;
     constexpr gpio_num_t LORA_CS_PIN      = GPIO_NUM_18;
     constexpr gpio_num_t LORA_RST_PIN     = GPIO_NUM_23; // Adjusted configuration for T3_V1.6 hardware revision
-    constexpr gpio_num_t LORA_IRQ_PIN     = GPIO_NUM_26;
+    constexpr gpio_num_t LORA_IRQ_PIN     = GPIO_NUM_26; // DIO0_PIN
+    constexpr gpio_num_t LORA_DIO1_PIN    = GPIO_NUM_33; // Wichtig für PLL-Lock & Timeout im RX-Modus
+
 
     // Semtech SX1276 LoRa Configuration Parameters
     constexpr uint32_t LORA_DEFAULT_FREQ_HZ = 433175000;
