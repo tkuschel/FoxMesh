@@ -19,10 +19,14 @@
  * @brief Simple internal abstraction layer mirroring the raw incoming packet payload.
  */
 struct LoraPacket {
+    /** @brief High-precision calibrated received signal power in dBm. */
     float rssi;
+    /** @brief High-precision calibrated signal-to-noise ratio in dB. */
     float snr;
+    /** @brief Payload size explicitly specified in bytes. */
     uint8_t length;
-    uint8_t payload;
+    /** @brief Fixed internal memory buffer capturing raw ingress bytes. Max SX1276 FIFO is 256. */
+    uint8_t payload[256];
 };
 
 /**
@@ -52,17 +56,6 @@ private:
     void writeRegister(uint8_t address, uint8_t value);
 
     /**
-     * @brief Evaluates raw register readings into calibrated RSSI and SNR telemetry metrics.
-     * @details Automatically compensates the RSSI offset base based on the active carrier frequency
-     *          band (Low-Band vs High-Band boundary at 525 MHz) as well as sub-noise SNR conditions.
-     * @param rawRssi The raw digital output read from RegRssiValue (0x1A).
-     * @param rawSnr The raw digital twos-complement output read from RegPktSnrValue (0x1B).
-     * @param[out] outRssi Reference destination pointer receiving the calibrated RSSI value in dBm.
-     * @param[out] outSnr Reference destination pointer receiving the calibrated SNR value in dB.
-     */
-    void calculateTelemetry(uint8_t rawRssi, uint8_t rawSnr, int8_t& outRssi, int8_t& outSnr);
-
-    /**
      * @brief Interrupt Service Routine wrapper triggered directly from GPIO state changes.
      * @param arg Opaque payload pointer referencing the target thread synchronization primitive.
      */
@@ -84,6 +77,17 @@ private:
      * @param pvParameters Context reference address pointing back into the instantiating class layer.
      */
     static void taskTrampoline(void* pvParameters);
+
+    /**
+     * @brief Evaluates raw register readings into calibrated RSSI and SNR telemetry metrics.
+     * @details Automatically compensates the RSSI offset base based on the active carrier frequency
+     *          band (Low-Band vs High-Band boundary at 525 MHz) as well as sub-noise SNR conditions.
+     * @param rawRssi The raw digital output read from RegRssiValue (0x1A).
+     * @param rawSnr The raw digital twos-complement output read from RegPktSnrValue (0x1B).
+     * @param[out] outRssi Reference destination pointer receiving the calibrated RSSI value in dBm.
+     * @param[out] outSnr Reference destination pointer receiving the calibrated SNR value in dB.
+     */
+    void calculateTelemetry(uint8_t rawRssi, uint8_t rawSnr, float& outRssi, float& outSnr);
 
 public:
     /**
