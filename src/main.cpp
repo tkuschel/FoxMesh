@@ -12,7 +12,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
-#include "driver/spi_master.h"
+//#include "driver/spi_master.h"
 #include "esp_log.h"
 #include "config.hpp"
 #include "led.hpp"
@@ -46,32 +46,6 @@ LoraController* lora_module = nullptr;
  */
 static LedController led(Config::LED_GPIO_PIN);
 
-/**
- * @brief Initializes the physical SPI peripheral for the Semtech SX1276 transceiver.
- *
- * Configures the VSPI (SPI3_HOST) back-end utilizing strict compile-time layouts
- * mapped inside config.hpp and configures automatic DMA channel routing.
- */
-void init_lora_spi(void) {
-    esp_err_t ret;
-
-    spi_bus_config_t buscfg = {};
-    buscfg.mosi_io_num = Config::LORA_MOSI_PIN;
-    buscfg.miso_io_num = Config::LORA_MISO_PIN;
-    buscfg.sclk_io_num = Config::LORA_SCK_PIN;
-    buscfg.quadwp_io_num = -1;
-    buscfg.quadhd_io_num = -1;
-    buscfg.max_transfer_sz = 0;
-
-    // Initialize the physical peripheral bus with automatic DMA channel assignment
-    ret = spi_bus_initialize(SPI3_HOST, &buscfg, SPI_DMA_CH_AUTO);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
-        return;
-    }
-    ESP_LOGI(TAG, "SPI bus initialized successfully on VSPI (SPI3)");
-}
-
 // Global application anchor marked as extern "C" for the native ESP-IDF bootloader
 extern "C" {
     /**
@@ -104,9 +78,6 @@ extern "C" {
         // Pass the bus instance dependency to the interactive terminal layer
         cli_init(i2c_bus, &led, display);
 
-        // Initialize the Semtech LoRa SPI connection layer
-        init_lora_spi();
-
         // Spin up the background console interface thread on Core 0
         start_cli_task();
 
@@ -117,7 +88,7 @@ extern "C" {
             //connects the lora instance with the CLI control directly (commands freq and bw)
             cli_init_lora(lora_module);
 
-            // start the radio task strict to the Core 1 (Priority 6)
+            // start the radio task straight to the Core 1 (Priority 6)
             lora_module->startTask(6);
             ESP_LOGI(TAG, "LoRa subsystem successfully activated on Core 1.");
         } else {
@@ -127,11 +98,10 @@ extern "C" {
         // Trigger synchronous welcome splash screen frame
         if (display != nullptr) {
             char msg[32];
-            //display->printMessage(0, "FoxMesh " Config::PROJECT_VERSION " \x86" "OE3TKT");
             snprintf(msg, sizeof(msg), "FoxMesh %s OE3TKT", Config::PROJECT_VERSION);
             display->printMessage(1, msg);
-            //display->printMessage(2, "Bärbel frühstückt ©");
         }
+
         // Main system watchdog and status monitor loop
         while (true) {
             ESP_LOGI(TAG, "[%s v%s] Operational. Free Heap: %lu bytes",
