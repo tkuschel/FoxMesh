@@ -22,7 +22,7 @@
 namespace Config {
     // Compile-time constants with strict type enforcement
     constexpr const char* PROJECT_TITLE   = "FoxMesh";
-    constexpr const char* PROJECT_VERSION = "1.0.4";
+    constexpr const char* PROJECT_VERSION = "1.0.5";
     constexpr const char* PROJECT_AUTHORS = "Tom OE3TKT";
 
     // CLI Mute Configuration
@@ -47,14 +47,21 @@ namespace Config {
     constexpr gpio_num_t LORA_IRQ_PIN     = GPIO_NUM_26;
 
     // Semtech SX1276 LoRa Configuration Parameters
-    // 433.175 MHz is calculated by: 433175000 / (32000000 / 2^19) = 7097139.2 = 0x6c4b33 // wrong: 0x06C4CD
-    constexpr uint8_t LORA_FRF_MSB        = 0x6C;
-    constexpr uint8_t LORA_FRF_MID        = 0x4B;
-    constexpr uint8_t LORA_FRF_LSB        = 0x33;
+    constexpr uint32_t LORA_DEFAULT_FREQ_HZ = 433175000;
+    constexpr uint32_t LORA_DEFAULT_BW_KHZ  = 250;
+    constexpr uint8_t  LORA_DEFAULT_SF      = 11;
+    constexpr uint8_t  LORA_DEFAULT_CR      = 6; // CR 4/6 -> Nenner ist 6
 
-    // Modem Config 1: BW 250kHz (0x80), CR 4/6 (0x04), Explicit Header (0x00) -> 0x84
+    // Der Compiler berechnet das 24-Bit Frequenzwort automatisch vor!
+    constexpr uint64_t LORA_FRF_CALC      = ((uint64_t)LORA_DEFAULT_FREQ_HZ << 19) / 32000000ULL;
+    constexpr uint8_t LORA_FRF_MSB        = static_cast<uint8_t>((LORA_FRF_CALC >> 16) & 0xFFU);
+    constexpr uint8_t LORA_FRF_MID        = static_cast<uint8_t>((LORA_FRF_CALC >> 8) & 0xFFU);
+    constexpr uint8_t LORA_FRF_LSB        = static_cast<uint8_t>(LORA_FRF_CALC & 0xFFU);
+
+    // Berechne die Register-Hexwerte dynamisch basierend auf den obigen Angaben
+    // BW: 250kHz -> 0x08. Shiften um 4 Bits nach links = 0x80. Coding Rate 4/6 -> 6-4 = 2 -> (2 << 1) = 0x04. Gesamt = 0x84.
     constexpr uint8_t LORA_MODEM_CONFIG_1 = 0x84;
-
-    // Modem Config 2: SF11 (0xB0), TX Continuous off (0x00), CRC On (0x04) -> 0xB4
+    // SF11 -> 0x0B. Shiften um 4 Bits nach links = 0xB0. CRC On = 0x04. Gesamt = 0xB4.
     constexpr uint8_t LORA_MODEM_CONFIG_2 = 0xB4;
+
 }

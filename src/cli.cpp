@@ -101,6 +101,23 @@ void process_command(const char* cmd) {
         printf("Mute Timer Period : %lu seconds\r\n", (unsigned long)current_mute_time_sec);
         printf("Target CPU Board  : ESP32\r\n");
         printf("ESP-IDF Version   : %s\r\n", esp_get_idf_version());
+
+        if (lora_system != nullptr) {
+            // Holt die atomare, thread-sichere Kopie der Telemetriedaten (Stack-Allokation)
+            LoraStateSnapshot snapshot = lora_system->getSnapshot();
+
+            printf("LoRa Hardware     : %s\r\n", snapshot.isInitialized ? "INITIALIZED" : "FAILED / UNINITIALIZED");
+            printf("LoRa Transceiver  : Mode [%s]\r\n", snapshot.currentModeStr);
+            printf("LoRa Frequency    : %lu Hz\r\n", (unsigned long)snapshot.frequencyHz);
+            printf("LoRa Bandwidth    : %lu kHz\r\n", (unsigned long)snapshot.bandwidthKhz);
+            printf("LoRa SpreadingFact: SF%u\r\n", snapshot.spreadingFactor);
+            printf("LoRa Coding Rate  : 4/%u\r\n", snapshot.codingRate);
+            printf("Packets Received  : %lu\r\n", (unsigned long)snapshot.totalPacketsReceived);
+            printf("Packets Transmit  : %lu\r\n", (unsigned long)snapshot.totalPacketsTransmitted);
+            printf("History In Memory : %zu Packets\r\n", snapshot.currentHistoryCount);
+        } else {
+            printf("LoRa Snapshot     : Error (LoraController Handle uninitialized)\r\n");
+        }
     }
     else if (strncmp(cmd, "mute ", 5) == 0) {
         int parsed_time = atoi(cmd + 5);

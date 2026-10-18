@@ -107,5 +107,7 @@ struct LoraStateSnapshot {
     /** @brief True if hardware was successfully validated and attached during initialization. (1 Byte) */
     bool isInitialized;
 
+    /** @brief Current Mode  */
+    char currentModeStr[16];
     // The three 1-byte variables at the bottom align perfectly into a 32-bit slot, leaving only 1 byte of trailing padding.
 };

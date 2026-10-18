@@ -13,6 +13,7 @@
 #include "config.hpp"
 #include "display.hpp"
 #include <cstring>
+#include "driver/spi_master.h"
 
 const char* LoraController::TAG = "LORA";
 
@@ -49,8 +50,25 @@ LoraController::~LoraController() {
  * @return The data register value content read back via the SPI transactions stack.
  */
 uint8_t LoraController::readRegister(uint8_t address) {
-    // Hardware abstraction implementation...
-    return 0;
+    if (m_spiHandle == nullptr) return 0;
+
+    // SX1276 Lesemodus: Bit 7 der Adresse muss 0 sein
+    uint8_t tx_data[2] = { static_cast<uint8_t>(address & 0x7FU), 0x00U };
+    uint8_t rx_data[2] = { 0 };
+
+    spi_transaction_t trans = {};
+    trans.length    = 16;       // 16 Bits = 2 Bytes (Adresse + Daten)
+    trans.tx_buffer = tx_data;
+    trans.rx_buffer = rx_data;
+
+    // Polling-Übertragung für minimale Latenz bei kurzen Register-Zugriffen
+    esp_err_t ret = spi_device_polling_transmit(static_cast<spi_device_handle_t>(m_spiHandle), &trans);
+    if (ret != ESP_OK) {
+        return 0;
+    }
+
+    // Das zweite empfangene Byte enthält den Registerwert
+    return rx_data[1];
 }
 
 /**
@@ -59,7 +77,21 @@ uint8_t LoraController::readRegister(uint8_t address) {
  * @param value The option layout bits context to be committed directly into the transceiver.
  */
 void LoraController::writeRegister(uint8_t address, uint8_t value) {
-    // Hardware abstraction implementation...
+    if (m_spiHandle == nullptr) return;
+
+    // SX1276 Schreibmodus: Bit 7 der Adresse muss 1 sein
+    uint8_t tx_data[2] = { static_cast<uint8_t>(address | 0x80U), value };
+
+    spi_transaction_t trans = {};
+    trans.length    = 16;       // 16 Bits = 2 Bytes (Adresse + Daten)
+    trans.tx_buffer = tx_data;
+    trans.rx_buffer = nullptr;  // Wir erwarten keine Rückgabedaten beim Schreiben
+
+    spi_device_polling_transmit(static_cast<spi_device_handle_t>(m_spiHandle), &trans);
+
+    // Live-Diagnose auf der CLI ausgeben (umgeht die 30-Sekunden-Sperre der CLI)
+    printf("[SPI TX] Reg 0x%02X <- Value 0x%02X\r\n", address, value);
+    fflush(stdout);
 }
 
 #pragma GCC diagnostic push
@@ -85,11 +117,103 @@ void IRAM_ATTR LoraController::gpioIsrHandler(void* arg) {
  * @return ESP_OK upon passing functional signature checks, alternative error frameworks upon link drops.
  */
 esp_err_t LoraController::initializeHardware() {
-    // Initializations steps omitted for length consistency...
+    esp_err_t ret;
+
+    // 1. Reset-Pin konfigurieren und Hardware-Reset des Transceivers durchführen
+    gpio_config_t rst_cfg = {};
+    rst_cfg.pin_bit_mask = (1ULL << Config::LORA_RST_PIN);
+    rst_cfg.mode         = GPIO_MODE_OUTPUT;
+    rst_cfg.pull_up_en   = GPIO_PULLUP_DISABLE;
+    rst_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    rst_cfg.intr_type    = GPIO_INTR_DISABLE;
+    gpio_config(&rst_cfg);
+
+    // Manueller Hardware-Reset laut Semtech Datenblatt
+    gpio_set_level(Config::LORA_RST_PIN, 0);
+    vTaskDelay(pdMS_TO_TICKS(2)); // Mindestens 100 µs auf Low halten
+    gpio_set_level(Config::LORA_RST_PIN, 1);
+    vTaskDelay(pdMS_TO_TICKS(10)); // 5 ms warten, bis der interne Oszillator stabil ist
+
+    // 2. SPI-Bus Konfiguration initialisieren
+    spi_bus_config_t bus_config = {};
+    bus_config.miso_io_num   = Config::LORA_MISO_PIN;
+    bus_config.mosi_io_num   = Config::LORA_MOSI_PIN;
+    bus_config.sclk_io_num   = Config::LORA_SCK_PIN;
+    bus_config.quadwp_io_num = -1;
+    bus_config.quadhd_io_num = -1;
+    bus_config.max_transfer_sz = 0;
+
+    // Wir nutzen SPI2_HOST (HSPI) für die Kommunikation
+    ret = spi_bus_initialize(SPI2_HOST, &bus_config, SPI_DMA_CH_AUTO);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // 3. SX1276 Gerätespezifische SPI-Konfiguration (Chip Select)
+    spi_device_interface_config_t dev_config = {};
+    dev_config.clock_speed_hz = 8000000;           // 8 MHz SPI Taktung
+    dev_config.mode           = 0;                 // SPI Mode 0
+    dev_config.spics_io_num   = Config::LORA_CS_PIN;
+    dev_config.queue_size     = 7;
+
+    spi_device_handle_t spi_device;
+    ret = spi_bus_add_device(SPI2_HOST, &dev_config, &spi_device);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to add SPI device hook: %s", esp_err_to_name(ret));
+        return ret;
+    }
+
+    // Zuweisung an das Klassen-Handle
+    m_spiHandle = static_cast<void*>(spi_device);
+
+    // 4. Silicon Check: Liest das Versionsregister (0x42) aus
+    uint8_t version = readRegister(0x42);
+    if (version != 0x12) {
+        ESP_LOGE(TAG, "Fatal: SX1276 Silicon check failed! Expected RegVersion 0x12, got 0x%02X", version);
+        spi_bus_remove_device(spi_device);
+        m_spiHandle = nullptr;
+        return ESP_ERR_INVALID_VERSION;
+    }
+
+    // 5. Interrupt-Pin (DIO0) für eingehende Funk-Events konfigurieren
+    gpio_config_t irq_cfg = {};
+    irq_cfg.pin_bit_mask = (1ULL << Config::LORA_IRQ_PIN);
+    irq_cfg.mode         = GPIO_MODE_INPUT;
+    irq_cfg.pull_up_en   = GPIO_PULLUP_DISABLE;
+    irq_cfg.pull_down_en = GPIO_PULLDOWN_ENABLE;  // DIO0 zieht bei Event aktiv auf High
+    irq_cfg.intr_type    = GPIO_INTR_POSEDGE;     // Trigger auf steigende Flanke (Rising Edge)
+    gpio_config(&irq_cfg);
+
+    // ISR-Service installieren (falls nicht schon an anderer Stelle im Projekt geschehen)
+    gpio_install_isr_service(0);
+
+    // Unseren statischen gpioIsrHandler an den Pin binden und das m_isrSemaphore als Argument übergeben
+    gpio_isr_handler_add(Config::LORA_IRQ_PIN, LoraController::gpioIsrHandler, m_isrSemaphore);
+
+    // 6. Initiale Modem- und Frequenzregister aus der config.hpp flashen
+    writeRegister(0x01, 0x81U); // In den Standby-Modus wechseln, um Register beschreiben zu dürfen
+    vTaskDelay(pdMS_TO_TICKS(5));
+
+    writeRegister(0x06, Config::LORA_FRF_MSB);
+    writeRegister(0x07, Config::LORA_FRF_MID);
+    writeRegister(0x08, Config::LORA_FRF_LSB);
+    writeRegister(0x1D, Config::LORA_MODEM_CONFIG_1);
+    writeRegister(0x1E, Config::LORA_MODEM_CONFIG_2);
+
+    // Zustand thread-sicher als betriebsbereit markieren
     if (xSemaphoreTake(m_stateMutex, portMAX_DELAY) == pdTRUE) {
-        m_state.isInitialized = true;
+        m_state.isInitialized           = true;
+
+        // Single Source of Truth: we use the manreadable values from config
+        m_state.frequencyHz             = Config::LORA_DEFAULT_FREQ_HZ;
+        m_state.bandwidthKhz            = Config::LORA_DEFAULT_BW_KHZ;
+        m_state.spreadingFactor         = Config::LORA_DEFAULT_SF;
+        m_state.codingRate              = Config::LORA_DEFAULT_CR;
         xSemaphoreGive(m_stateMutex);
     }
+
+    ESP_LOGI(TAG, "SX1276 LoRa transceiver attached successfully via SPI (Version: 0x%02X).", version);
     return ESP_OK;
 }
 
@@ -97,7 +221,19 @@ esp_err_t LoraController::initializeHardware() {
  * @brief Drives internal radio operational states back into endless listening configurations.
  */
 void LoraController::setModeReceiver() {
-    // Basic setup configurations routing context...
+    if (m_spiHandle == nullptr) return;
+
+    // 1. DIO0-Pin im SX1276 auf "RxDone" ummappen (0x00 im MSB von RegDioMapping1)
+    uint8_t dioMapping = readRegister(0x40);
+    writeRegister(0x40, (dioMapping & 0x3FU) | 0x00U);
+
+    // 2. Den SX1276 in den permanenten RX-Modus (RXCONTINUOUS = 0x05) versetzen
+    // Bit 7 muss 1 sein für den LoRa-Modus (LongRangeMode)
+    writeRegister(0x01, 0x85U);
+
+    // Kurze Bestätigung auf der CLI (umgeht die 30-Sekunden-Sperre)
+    printf("[LoRa] Radio shifted into continuous listening mode (RX).\r\n");
+    fflush(stdout);
 }
 
 /**
@@ -126,10 +262,13 @@ void LoraController::setFrequency(uint32_t freq_hz) {
 
         xSemaphoreGive(m_stateMutex);
 
-        // High-precision formatted terminal trace showing both decimal and uppercase 24-bit hex configurations
-        ESP_LOGI(TAG, "Frequency updated to %lu Hz (0x%06X)", (unsigned long)freq_hz, (unsigned int)frf);
+        // Geändertes printf umgeht die CLI-Logsperre unzensiert
+        printf("\r\n[LoRa HW] Frequency successfully shifted to %lu Hz (0x%06X)\r\n",
+               (unsigned long)freq_hz, (unsigned int)frf);
+        fflush(stdout);
     }
 }
+
 
 /**
  * @brief Recovers active runtime radio target frequencies thread-safely.
@@ -149,10 +288,122 @@ uint32_t LoraController::getFrequency() {
  * @param bw_khz Operating modulation channel grid width metric parameters.
  */
 void LoraController::setBandwidth(uint32_t bw_khz) {
+    if (m_spiHandle == nullptr) return;
+
+    // Map die gängigen kHz-Werte auf die Bit-Konfigurationen des SX1276 (RegModemConfig1)
+    uint8_t bw_val = 0;
+    if (bw_khz == 62)        bw_val = 0x06; // 62.5 kHz
+    else if (bw_khz == 125)  bw_val = 0x07; // 125 kHz
+    else if (bw_khz == 250)  bw_val = 0x08; // 250 kHz
+    else if (bw_khz == 500)  bw_val = 0x09; // 500 kHz
+    else {
+        printf("Error: Unsupported bandwidth %lu kHz\r\n", (unsigned long)bw_khz);
+        fflush(stdout);
+        return;
+    }
+
     if (xSemaphoreTake(m_stateMutex, portMAX_DELAY) == pdTRUE) {
         m_state.bandwidthKhz = bw_khz;
-        // Apply modem updates...
+
+        // 1. Sichere den aktuellen Modus des Radios
+        uint8_t previousMode = readRegister(0x01); // RegOpMode
+
+        // 2. Schalte das Radio kurz in den Standby-Modus (Modem-Registeränderung nur im Standby/Sleep erlaubt!)
+        writeRegister(0x01, (previousMode & 0xF8U) | 0x01U);
+        vTaskDelay(pdMS_TO_TICKS(2));
+
+        // 3. Lies RegModemConfig1 (0x1D), maskiere die alten Bandbreiten-Bits (7-4) aus und setze die neuen
+        uint8_t config1 = readRegister(0x1D);
+        config1 = (config1 & 0x0FU) | static_cast<uint8_t>(bw_val << 4);
+        writeRegister(0x1D, config1);
+
+        // 4. Stelle den ursprünglichen Radio-Modus wieder her (z.B. zurück in den RX-Modus)
+        writeRegister(0x01, previousMode);
+
         xSemaphoreGive(m_stateMutex);
+
+        // Klares, ungefiltertes CLI-Feedback (umgeht die 30-Sekunden-Logsperre)
+        printf("\r\n[LoRa HW] Bandwidth successfully updated to %lu kHz (Reg0x1D: 0x%02X)\r\n",
+               (unsigned long)bw_khz, config1);
+        fflush(stdout);
+    }
+}
+
+/**
+ * @brief Overrides the operational hardware spreading factor configuration.
+ * @param sf Target spreading factor (typically 6 to 12).
+ */
+void LoraController::setSpreadingFactor(uint8_t sf) {
+    if (m_spiHandle == nullptr) return;
+    if (sf < 6 || sf > 12) {
+        printf("Error: Unsupported spreading factor SF%u (Allowed: 6-12)\r\n", sf);
+        fflush(stdout);
+        return;
+    }
+
+    if (xSemaphoreTake(m_stateMutex, portMAX_DELAY) == pdTRUE) {
+        m_state.spreadingFactor = sf;
+
+        uint8_t previousMode = readRegister(0x01); // RegOpMode
+        writeRegister(0x01, (previousMode & 0xF8U) | 0x01U); // Standby
+        vTaskDelay(pdMS_TO_TICKS(2));
+
+        // SF liegt in den oberen 4 Bits (7-4) von RegModemConfig2 (0x1E)
+        uint8_t config2 = readRegister(0x1E);
+        config2 = (config2 & 0x0FU) | static_cast<uint8_t>(sf << 4);
+        writeRegister(0x1E, config2);
+
+        // Sonderfall für SF6 (erfordert zusätzliches Handling im Register 0x31/0x37 laut Datenblatt)
+        if (sf == 6) {
+            uint8_t detectOptimize = readRegister(0x31);
+            writeRegister(0x31, (detectOptimize & 0xF8U) | 0x05U);
+            writeRegister(0x37, 0x0CU);
+        } else {
+            uint8_t detectOptimize = readRegister(0x31);
+            writeRegister(0x31, (detectOptimize & 0xF8U) | 0x03U);
+            writeRegister(0x37, 0x0AU);
+        }
+
+        writeRegister(0x01, previousMode); // Zurück in den Vorzustand
+        xSemaphoreGive(m_stateMutex);
+
+        printf("\r\n[LoRa HW] Spreading Factor updated to SF%u (Reg0x1E: 0x%02X)\r\n", sf, config2);
+        fflush(stdout);
+    }
+}
+
+/**
+ * @brief Overrides the operational hardware coding rate configuration.
+ * @param cr_denominator Target denominator (e.g. 5 for 4/5, 6 for 4/6, etc.).
+ */
+void LoraController::setCodingRate(uint8_t cr_denominator) {
+    if (m_spiHandle == nullptr) return;
+    if (cr_denominator < 5 || cr_denominator > 8) {
+        printf("Error: Unsupported coding rate 4/%u (Allowed: 4/5 - 4/8)\r\n", cr_denominator);
+        fflush(stdout);
+        return;
+    }
+
+    if (xSemaphoreTake(m_stateMutex, portMAX_DELAY) == pdTRUE) {
+        m_state.codingRate = cr_denominator;
+
+        uint8_t previousMode = readRegister(0x01); // RegOpMode
+        writeRegister(0x01, (previousMode & 0xF8U) | 0x01U); // Standby
+        vTaskDelay(pdMS_TO_TICKS(2));
+
+        // CR-Wert für das Register berechnen (CR = cr_denominator - 4)
+        uint8_t cr_register_val = cr_denominator - 4;
+
+        // Coding Rate liegt in den Bits 3-1 von RegModemConfig1 (0x1D)
+        uint8_t config1 = readRegister(0x1D);
+        config1 = (config1 & 0xF1U) | static_cast<uint8_t>(cr_register_val << 1);
+        writeRegister(0x1D, config1);
+
+        writeRegister(0x01, previousMode);
+        xSemaphoreGive(m_stateMutex);
+
+        printf("\r\n[LoRa HW] Coding Rate updated to 4/%u (Reg0x1D: 0x%02X)\r\n", cr_denominator, config1);
+        fflush(stdout);
     }
 }
 
@@ -389,25 +640,29 @@ void LoraController::run() {
     static uint32_t packetCounter = 0;
 
     while (true) {
+        // waits till GPIO interrupt (DIO0) leases the semaphore
         if (xSemaphoreTake(m_isrSemaphore, portMAX_DELAY) == pdTRUE) {
+
+            // 1. Read the active interrupt flags and immediatly clear them (writing 1)
             uint32_t irqFlags = readRegister(0x12);
             writeRegister(0x12, static_cast<uint8_t>(irqFlags));
 
+            // 2. Verify if the RxDone flag (bit 6) is set
             if ((irqFlags & 0x40U) != 0U) { // RxDone Flag
                 packetCounter++;
                 LoraPacket packet = {};
                 packet.length = readRegister(0x13);
 
+                // 3. Reset the internal FIFO read pointe to the start address
+
                 uint32_t currentFifoAddress = readRegister(0x10);
                 writeRegister(0x09, static_cast<uint8_t>(currentFifoAddress));
 
                 for (uint8_t i = 0; i < packet.length; i++) {
-                    packet.payload[i] = readRegister(0x00);
+                    packet.payload[i] = readRegister(0x00); // RegFifo
                 }
-
                 //packet.rssi = static_cast<int8_t>(static_cast<int>(readRegister(0x1A)) - 157);
                 //packet.snr  = static_cast<int8_t>(static_cast<int>(readRegister(0x1B)) / 4);
-
                 // Read raw values from transceiver registers
                 uint8_t rawRssiReg = readRegister(0x1A);
                 uint8_t rawSnrReg  = readRegister(0x1B);
@@ -446,6 +701,49 @@ void LoraController::run() {
                     display->printMessage(2, displayBuffer);
                 }
             }
+            // 5. Explicitly re-engage continous receiver mode
+            setModeReceiver();
         }
     }
+}
+
+/**
+ * @brief Generates an atomic, high-performance runtime snapshot of configuration parameters and metrics.
+ */
+LoraStateSnapshot LoraController::getSnapshot() {
+    LoraStateSnapshot snapshot = {};
+
+    // Sichere die thread-übergreifende Konsistenz mittels Mutex ab
+    if (xSemaphoreTake(m_stateMutex, portMAX_DELAY) == pdTRUE) {
+
+        // Kopiere die primitiven Werte aus dem internen Zustandstabellen-Struct (m_state)
+        snapshot.frequencyHz             = m_state.frequencyHz;
+        snapshot.bandwidthKhz            = m_state.bandwidthKhz;
+        snapshot.totalPacketsReceived    = m_state.totalPacketsReceived;
+        snapshot.totalPacketsTransmitted = m_state.totalPacketsTransmitted;
+        snapshot.spreadingFactor         = m_state.spreadingFactor;
+        snapshot.codingRate              = m_state.codingRate;
+        snapshot.isInitialized           = m_state.isInitialized;
+
+        // Zähle die Elemente in der Liste, ohne die schweren Payload-Vektoren zu kopieren
+        snapshot.currentHistoryCount     = m_state.packetList.size();
+
+
+        // Read exact hardware mode via SPI Rgister 0x01
+        uint8_t rawMode = readRegister(0x01) & 0x07U;
+        switch (rawMode) {
+            case 0x00: strncpy(snapshot.currentModeStr, "SLEEP", sizeof(snapshot.currentModeStr)); break;
+            case 0x01: strncpy(snapshot.currentModeStr, "STANDBY", sizeof(snapshot.currentModeStr)); break;
+            case 0x03: strncpy(snapshot.currentModeStr, "TX", sizeof(snapshot.currentModeStr)); break;
+            case 0x05: strncpy(snapshot.currentModeStr, "RXCONTINUOUS", sizeof(snapshot.currentModeStr)); break;
+            case 0x06: strncpy(snapshot.currentModeStr, "RXSINGLE", sizeof(snapshot.currentModeStr)); break;
+            case 0x07: strncpy(snapshot.currentModeStr, "CAD", sizeof(snapshot.currentModeStr)); break;
+            default:   strncpy(snapshot.currentModeStr, "UNKNOWN", sizeof(snapshot.currentModeStr)); break;
+        }
+
+        // Mutex sofort wieder freigeben, um das LoRa-System nicht zu blockieren
+        xSemaphoreGive(m_stateMutex);
+    }
+
+    return snapshot;
 }

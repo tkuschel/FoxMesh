@@ -140,6 +140,18 @@ public:
     void setBandwidth(uint32_t bw_khz);
 
     /**
+     * @brief Thread-safely updates the operational spreading factor configuration.
+     * @param sf Spreading factor scale (6-12).
+     */
+    void setSpreadingFactor(uint8_t sf);
+
+    /**
+     * @brief Thread-safely updates the operational coding rate protection overhead.
+     * @param cr_denominator Coding rate denominator index (5-8).
+     */
+    void setCodingRate(uint8_t cr_denominator);
+
+    /**
      * @brief Thread-safely logs an incoming transaction capture directly into the historical context nodes collection.
      * @param packet Structural dataset mapping telemetry markers alongside the payload block.
      * @param sequence Absolute hardware sequence reference step index.
