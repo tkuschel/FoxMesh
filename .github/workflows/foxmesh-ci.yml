@@ -21,22 +21,26 @@ jobs:
       contents: write # We want also create official Releases
 
     steps:
+    - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+    - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by Gitea!"
+    - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+
     # 1. Checkout the target branch
     - name: Checkout Target branch
       uses: actions/checkout@v7
       with:
         ref: ${{ github.event.inputs.target_branch || github.ref }}
-    
+
     # 2. Extract Git and Date Metadata for the dynamic artifact filename
     - name: Generate Dynamic Artifact Metadata
       id: meta
       run: |
         # Get current date in YYYYMMDD format
         echo "CURRENT_DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
-        
+
         # Get short 7-character git commit hash
         echo "GIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-        
+
         # Extract and sanitize branch name (replace slashes and special characters with dashes)
         RAW_BRANCH=${{ github.event.inputs.target_branch || github.ref_name }}
         CLEAN_BRANCH=$(echo "$RAW_BRANCH" | sed 's/[^a-zA-Z0-9.\-]/_§/g' | sed 's|§|-|g' | sed 's|_||g')
@@ -253,7 +257,7 @@ jobs:
         [ -f "$BUILD_OUTPUT/partitions.bin" ] && cp "$BUILD_OUTPUT/partitions.bin" ./deploy_package/
         [ -f "$BUILD_OUTPUT/otadata.bin" ] && cp "$BUILD_OUTPUT/otadata.bin" ./deploy_package/
         [ -f "$BUILD_OUTPUT/safeboot.bin" ] && cp "$BUILD_OUTPUT/safeboot.bin" ./deploy_package/
-        
+
         # Move flash scripts into the deployment directory
         mv flash_esp32_board.sh ./deploy_package/
         mv flash_esp32_board.bat ./deploy_package/
