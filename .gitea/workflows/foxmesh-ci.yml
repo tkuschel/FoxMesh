@@ -2,8 +2,9 @@ name: Build of FoxMesh
 
 on:
   push:
-    branches:
-    - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ] # Trigger the workflow on pull request events targeting the main branch
   workflow_dispatch:
     inputs:
       target_branch:
