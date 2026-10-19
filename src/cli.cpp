@@ -163,16 +163,7 @@ void process_command(const char* cmd) {
 
             if (valid_433 || valid_868) {
                 if (lora_system != nullptr) {
-                    // SX1276 formula: Frf = Ffreq * 2^19 / 32000000
-                    // Using double to prevent truncation during division before bit masking
-                    double fraction = (static_cast<double>(target_freq_hz) * 524288.0) / 32000000.0;
-                    uint32_t frf = static_cast<uint32_t>(fraction);
-
-                    uint8_t msb = static_cast<uint8_t>((frf >> 16) & 0xFFU);
-                    uint8_t mid = static_cast<uint8_t>((frf >> 8) & 0xFFU);
-                    uint8_t lsb = static_cast<uint8_t>(frf & 0xFFU);
-
-                    lora_system->setFrequency(msb, mid, lsb);
+                    lora_system->setFrequency(target_freq_hz);
                     printf("Success: Frequency shifted to %lu Hz.\r\n", (unsigned long)target_freq_hz);
                 } else {
                     printf("Error: LoraController handle is uninitialized.\r\n");
