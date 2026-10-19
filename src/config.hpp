@@ -45,16 +45,50 @@ namespace Config {
     constexpr gpio_num_t LORA_CS_PIN      = GPIO_NUM_18;
     constexpr gpio_num_t LORA_RST_PIN     = GPIO_NUM_23; // Adjusted configuration for T3_V1.6 hardware revision
     constexpr gpio_num_t LORA_IRQ_PIN     = GPIO_NUM_26;
+    constexpr gpio_num_t LORA_DIO1_PIN    = GPIO_NUM_33; // Important: PLL lock & Timeout in RX mode
 
     // Semtech SX1276 LoRa Configuration Parameters
     // 433.175 MHz is calculated by: 433175000 / (32000000 / 2^19) = 7097139.2 = 0x6c4b33 // wrong: 0x06C4CD
-    constexpr uint8_t LORA_FRF_MSB        = 0x6C;
-    constexpr uint8_t LORA_FRF_MID        = 0x4B;
-    constexpr uint8_t LORA_FRF_LSB        = 0x33;
+    constexpr uint32_t LORA_DEFAULT_FREQ_HZ = 433175000;
+    constexpr uint8_t  LORA_FRF_MSB         = 0x6C; // @TODO: will be removed in v1.1
+    constexpr uint8_t  LORA_FRF_MID         = 0x4B; // @TODO: will be removed in v1.1
+    constexpr uint8_t  LORA_FRF_LSB         = 0x33; // @TODO: will be removed in v1.1
+    constexpr uint32_t LORA_DEFAULT_BW_KHZ  = 250;
+    constexpr uint8_t  LORA_DEFAULT_SF      = 11;
+    constexpr uint8_t  LORA_DEFAULT_CR      = 6;    // CR 4/6 -> Denominator is 6
+
+    // Predefined LoRa Sync Word options for hardware correlation filtering, see docs/lora/device-settings.md
+    constexpr uint8_t LORA_SYNC_WORD_PUBLIC_NETWORK_MODE   = 0x34; // MeshCom (ÖVSV standard for amateur radio mesh),
+                                                                   // The Things Network, Helium
+    constexpr uint8_t LORA_SYNC_WORD_TACTICAL_NETWORK_MODE = 0x24; // Meshtastic (Civilian off-grid tactical mesh network)
+    constexpr uint8_t LORA_SYNC_WORD_PRIVATE_NETWORK_MODE  = 0x12; // Semtech Default (Factory default / Private point-to-point)
+    constexpr uint8_t LORA_SYNC_WORD_ISOLATED_ARRAY_A      = 0x55; // Custom / Experimental individual networks (highly isolated)
+    constexpr uint8_t LORA_SYNC_WORD_ISOLATED_ARRAY_B      = 0xAA; // Custom / Experimental individual networks (highly isolated)
+
+    // Active hardware synchronization configuration selector
+    constexpr uint8_t LORA_SYNC_WORD = LORA_SYNC_WORD_PUBLIC_NETWORK_MODE; // Selected default synchronization profile
+
+    // Expand hardware preamble length to 12 symbols for robust network correlation (MeshCom value)
+    constexpr uint8_t LORA_PREAMBLE_LENGTH_MSB = 0x00;
+    constexpr uint8_t LORA_PREAMBLE_LENGTH_LSB = 0x0C; // Semtech Factor Default is 0x08, MeshCom with 0x0C, i.e. 12 symbols
 
     // Modem Config 1: BW 250kHz (0x80), CR 4/6 (0x04), Explicit Header (0x00) -> 0x84
-    constexpr uint8_t LORA_MODEM_CONFIG_1 = 0x84;
+    // constexpr uint8_t LORA_MODEM_CONFIG_1 = 0x84;   // @TODO: will be removed in v1.1
 
     // Modem Config 2: SF11 (0xB0), TX Continuous off (0x00), CRC On (0x04) -> 0xB4
-    constexpr uint8_t LORA_MODEM_CONFIG_2 = 0xB4;
+    // constexpr uint8_t LORA_MODEM_CONFIG_2 = 0xB4;   // @TODO: will be removed in v1.1
+
+    // --- DYNAMIC COMPILE-TIME BIT-SHIFTING EXPRESSIONS ---
+
+    // Helper to map bandwidth kHz to Semtech Register Bits (7-4 of RegModemConfig1)
+    constexpr uint8_t LORA_BW_REG_VAL = (LORA_DEFAULT_BW_KHZ == 62)  ? 0x06 :
+                                        (LORA_DEFAULT_BW_KHZ == 125) ? 0x07 :
+                                        (LORA_DEFAULT_BW_KHZ == 250) ? 0x08 :
+                                        (LORA_DEFAULT_BW_KHZ == 500) ? 0x09 : 0x08;
+
+    // RegModemConfig1 (0x1D): Bandwidth (Bits 7-4), Coding Rate (Bits 3-1), ImplicitHeader (Bit 0 = 0)
+    constexpr uint8_t LORA_MODEM_CONFIG_1 = static_cast<uint8_t>((LORA_BW_REG_VAL << 4) | ((LORA_DEFAULT_CR - 4) << 1));
+
+    // RegModemConfig2 (0x1E): Spreading Factor (Bits 7-4), TxContinuous (Bit 3 = 0), RxPayloadCrcOn (Bit 2 = 1)
+    constexpr uint8_t LORA_MODEM_CONFIG_2 = static_cast<uint8_t>((LORA_DEFAULT_SF << 4) | 0x04U);
 }
