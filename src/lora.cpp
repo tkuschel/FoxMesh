@@ -58,24 +58,22 @@ LoraController::~LoraController() {
 uint8_t LoraController::readRegister(uint8_t address) {
     if (m_spiHandle == nullptr) return 0;
 
-    // SX1276 Lesemodus: Bit 7 der Adresse muss 0 sein
-    //uint8_t tx_data[2] = { static_cast<uint8_t>(address & 0x7FU), 0x00U };
-    //uint8_t rx_data[2] = { 0 };
-
     spi_transaction_t trans = {};
     trans.flags     = SPI_TRANS_USE_TXDATA | SPI_TRANS_USE_RXDATA;
-    trans.length    = 16;       // 16 Bits = 2 Bytes (Adresse + Daten)
-    trans.tx_data[0] = static_cast<uint8_t>(address & 0x7FU); // read mode
-    trans.tx_data[1] = 0x00U;
+    trans.length    = 16; // 16 Bits total (8-bit address + 8-bit data)
 
-    // Polling-Übertragung für minimale Latenz bei kurzen Register-Zugriffen
+    // ESP-IDF SPI-Master Endianness Fix für 16-Bit:
+    // Adresse muss in das erste Byte, das Dummy-Byte in das zweite Byte.
+    trans.tx_data[0] = static_cast<uint8_t>(address & 0x7FU); // Read mode: Bit 7 = 0
+    trans.tx_data[1] = 0x00U;                                 // Dummy byte for clocking
+
     esp_err_t ret = spi_device_polling_transmit(static_cast<spi_device_handle_t>(m_spiHandle), &trans);
     if (ret != ESP_OK) {
         return 0;
     }
 
-    // Das zweite empfangene Byte enthält den Registerwert
-    return trans.rx_data[0];
+    // Der echte Registerinhalt wird IMMER im zweiten empfangenen Byte geliefert
+    return trans.rx_data[1];
 }
 
 /**
@@ -86,18 +84,18 @@ uint8_t LoraController::readRegister(uint8_t address) {
 void LoraController::writeRegister(uint8_t address, uint8_t value) {
     if (m_spiHandle == nullptr) return;
 
-    // SX1276 Schreibmodus: Bit 7 der Adresse muss 1 sein
-    // uint8_t tx_data[2] = { static_cast<uint8_t>(address | 0x80U), value };
-
     spi_transaction_t trans = {};
-    trans.flags     = SPI_TRANS_USE_TXDATA; //use internal arrays!
-    trans.length    = 16;       // 16 Bits = 2 Bytes (Adresse + Daten)
-    trans.tx_data[0] = static_cast<uint8_t>(address | 0x80U); // write mode
-    trans.tx_data[1] = value;
+    trans.flags     = SPI_TRANS_USE_TXDATA;
+    trans.length    = 16; // 16 Bits total (8-bit address + 8-bit data)
+
+    // ESP-IDF SPI-Master Endianness Fix für 16-Bit:
+    // Adresse in das erste Byte, der zu schreibende Wert in das zweite Byte.
+    trans.tx_data[0] = static_cast<uint8_t>(address | 0x80U); // Write mode: Bit 7 = 1
+    trans.tx_data[1] = value;                                 // Value to write
 
     spi_device_polling_transmit(static_cast<spi_device_handle_t>(m_spiHandle), &trans);
 
-    // Live-Diagnose auf der CLI ausgeben (umgeht die 30-Sekunden-Sperre der CLI)
+    // Live-Diagnose auf der CLI ausgeben
     printf("[SPI TX] Reg 0x%02X <- Value 0x%02X\r\n", address, value);
     fflush(stdout);
 }
@@ -126,6 +124,28 @@ void IRAM_ATTR LoraController::gpioIsrHandler(void* arg) {
  */
 esp_err_t LoraController::initializeHardware() {
     esp_err_t ret;
+
+// Explicit test sequence to identify the silicon footprint (SX1276 vs SX1278)
+writeRegister(0x01, 0x00U); // Force pure FSK Sleep
+vTaskDelay(pdMS_TO_TICKS(5));
+
+writeRegister(0x01, 0x08U); // Try to set LowFrequencyModeOn (Bit 3)
+vTaskDelay(pdMS_TO_TICKS(5));
+
+uint8_t chipCheck = readRegister(0x01);
+printf("\r\n============================================\r\n");
+printf("[LoRa Chip ID] Wrote 0x08 into FSK Sleep. Read back: 0x%02X\r\n", chipCheck);
+if (chipCheck == 0x08U) {
+    printf("[LoRa Chip ID] SILICON IDENTIFIED: Semtech SX1276 (Dual-Band Architecture)\r\n");
+} else if (chipCheck == 0x00U) {
+    printf("[LoRa] SILICON IDENTIFIED: Semtech SX1278 (Dedicated Low-Band Only)\r\n");
+} else {
+    printf("[LoRa Chip ID] SPI Read error or unexpected state: 0x%02X\r\n", chipCheck);
+}
+printf("============================================\r\n\r\n");
+fflush(stdout);
+
+
 
     // =========================================================================
     // STEP 1: CONFIGURE RESET PIN AND EXECUTE AN AGGRESSIVE HARDWARE RESET
@@ -230,16 +250,24 @@ esp_err_t LoraController::initializeHardware() {
     // =========================================================================
     // STEP 6: TRANSITION INTO LORA CONFIGURATION SPACE & MODEM CONFIG
     // =========================================================================
-    // 1. Force SLEEP Mode first while enforcing Low Frequency Mode active (0x08)
-    // This is the only state where the transceiver accepts the LoRa mode switch!
+    // 1. Force SLEEP Mode with Low Frequency Mode enabled (0x08)
+    // This unlocks the ability to switch the operating band and modify base parameters
     writeRegister(0x01, 0x00U | 0x08U);
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    // 2. Enable LoRa Mode (Bit 7) and shift to STANDBY (0x80 | 0x08 | 0x01 = 0x89U)
-    writeRegister(0x01, 0x89U);
-    vTaskDelay(pdMS_TO_TICKS(10));
+    // 2. CRITICAL 433MHz FIX: Write frequency registers while SAFELY in SLEEP mode!
+    // This prevents the analog PLL from throwing an early lock-fault error.
+    uint64_t frf = ((uint64_t)Config::LORA_DEFAULT_FREQ_HZ << 19) / 32000000ULL;
+    writeRegister(0x06, static_cast<uint8_t>((frf >> 16) & 0xFFU)); // RegFrfMsb
+    writeRegister(0x07, static_cast<uint8_t>((frf >> 8) & 0xFFU));  // RegFrfMid
+    writeRegister(0x08, static_cast<uint8_t>(frf & 0xFFU));         // RegFrfLsb
+    vTaskDelay(pdMS_TO_TICKS(5));
 
-    // 3. Force Frontend Image Calibration to unblock low-band frequency synthesizer
+    // 3. Enable LoRa Mode (Bit 7) and shift to STANDBY (0x80 | 0x08 | 0x01 = 0x89U)
+    writeRegister(0x01, 0x89U);
+    vTaskDelay(pdMS_TO_TICKS(15)); // Give the crystal oscillator ample time to lock onto the new band
+
+    // 4. Force Frontend Image Calibration to align the internal low-band mixers
     writeRegister(0x3B, 0x18U);        // Set TempThreshold to minimum
     writeRegister(0x3B, 0x18U | 0x40U); // Trigger manual calibration cycle
     uint32_t calTimeout = 100;
@@ -247,12 +275,7 @@ esp_err_t LoraController::initializeHardware() {
         vTaskDelay(pdMS_TO_TICKS(1));
         calTimeout--;
     }
-
-    // 4. Write calculated 24-bit RF carrier frequency registers using 64-bit safe boundaries
-    uint64_t frf = ((uint64_t)Config::LORA_DEFAULT_FREQ_HZ << 19) / 32000000ULL;
-    writeRegister(0x06, static_cast<uint8_t>((frf >> 16) & 0xFFU)); // RegFrfMsb
-    writeRegister(0x07, static_cast<uint8_t>((frf >> 8) & 0xFFU));  // RegFrfMid
-    writeRegister(0x08, static_cast<uint8_t>(frf & 0xFFU));         // RegFrfLsb
+    vTaskDelay(pdMS_TO_TICKS(5));
 
     // 5. Apply core modem configs from configuration parameters
     writeRegister(0x1D, Config::LORA_MODEM_CONFIG_1);
@@ -305,47 +328,32 @@ esp_err_t LoraController::initializeHardware() {
 void LoraController::setModeReceiver() {
     if (m_spiHandle == nullptr) return;
 
-    // 1. FORCE SLEEP MODE FIRST - MANDATORY TO UNLOCK THE LORA BIT (Bit 7)
-    // We must pass 0x08 to keep LowFrequencyModeOn active even during sleep
-    writeRegister(0x01, 0x00U | 0x08U);
-    vTaskDelay(pdMS_TO_TICKS(10)); // Give the digital core ample time to drop all analog blocks
+    // 1. Force Standby first with Low Frequency Mode enabled (0x89)
+    // We remain in LoRa Standby to safely prepare the register buffers
+    writeRegister(0x01, 0x89U);
+    vTaskDelay(pdMS_TO_TICKS(5));
 
-    // 2. ENABLE LORA MODE AND SHIFT TO STANDBY
-    // Bit 7 (LoRa) + Bit 3 (Low Frequency 433MHz) + Bit 0 (Standby) = 0x89U
-    writeRegister(0x01, 0x80U | 0x08U | 0x01U);
-    vTaskDelay(pdMS_TO_TICKS(10)); // Wait until the crystal oscillator stabilizes
-
-    // =========================================================================
-    // CRITICAL FIX: RE-WRITE FREQUENCY REGISTERS WHILE SAFELY IN LORA STANDBY
-    // If the chip loses the LoRa bit, the frequency registers are interpreted as FSK.
-    // We MUST re-write them here to ensure the LoRa state machine sees a valid frequency!
-    // =========================================================================
-    uint64_t frf = ((uint64_t)Config::LORA_DEFAULT_FREQ_HZ << 19) / 32000000ULL;
-    writeRegister(0x06, static_cast<uint8_t>((frf >> 16) & 0xFFU)); // RegFrfMsb
-    writeRegister(0x07, static_cast<uint8_t>((frf >> 8) & 0xFFU));  // RegFrfMid
-    writeRegister(0x08, static_cast<uint8_t>(frf & 0xFFU));         // RegFrfLsb
-    // =========================================================================
-
-    // 3. Remap DIO peripheral routes (DIO0 = RxDone, DIO1 = RxTimeout)
+    // 2. Remap DIO peripheral routes inside the SX1276 (RegDioMapping1 = 0x40)
     uint8_t dioMapping = readRegister(0x40);
     dioMapping &= 0x0FU;
-    writeRegister(0x40, dioMapping | 0x00U);
+    writeRegister(0x40, dioMapping | 0x00U); // DIO0=RxDone, DIO1=RxTimeout
 
-    // 4. Enable HF-Antenna switch auto-mapping via DIO2/DIO3 (RegDioMapping2 = 0x41)
+    // 3. Enable HF-Antenna switch auto-mapping via DIO2/DIO3 (RegDioMapping2 = 0x41)
     uint8_t dioMapping2 = readRegister(0x41);
     writeRegister(0x41, dioMapping2 | 0x01U);
 
-    // 5. Clear any stale hardware interrupt flags
+    // 4. Clear any stale interrupt flags by writing 0xFF to RegIrqFlags (0x12)
     writeRegister(0x12, 0xFFU);
 
-    // 6. COMMIT DIRECTLY INTO LORA CONTINUOUS RECEIVE MODE
-    // Bit 7 (LoRa) + Bit 3 (Low Frequency 433MHz) + Bits 2-0 (RXCONTINUOUS = 5) = 0x8DU
-    writeRegister(0x01, 0x80U | 0x08U | 0x05U);
-    vTaskDelay(pdMS_TO_TICKS(10)); // Allow the RF front-end and PLL lock to complete fully
+    // 5. Commit the SX1276 directly into continuous listening mode (RXCONTINUOUS)
+    // Bit 7 (LoRa) + Bit 3 (Low Frequency Mode) + Bits 2-0 (RXCONTINUOUS = 5) = 0x8D
+    writeRegister(0x01, 0x8DU);
 
-    // Final verification check on the CLI to see if the hardware accepted the mode
-    uint8_t verification = readRegister(0x01);
-    printf("[LoRa] Shifting completed. RegOpMode readback: 0x%02X\r\n", verification);
+    // Ganz wichtig: Dem FreeRTOS-Task zwingend Zeit geben, damit der Chip die PLL
+    // autonom im Hintergrund einrasten kann, BEVOR andere Abfragen dazwischenfunken!
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    printf("[LoRa] Radio shifted into continuous listening mode (RX - 433MHz).\r\n");
     fflush(stdout);
 }
 
@@ -881,6 +889,14 @@ LoraStateSnapshot LoraController::getSnapshot() {
         // Zähle die Elemente in der Liste, ohne die schweren Payload-Vektoren zu kopieren
         snapshot.currentHistoryCount     = m_state.packetList.size();
 
+        // Read Register 0x01 ONLY ONCE to avoid SPI race conditions
+        uint8_t rohofmode = readRegister(0x01);
+        uint8_t rawMode = rohofmode & 0x07U;
+
+        // Print the real, unmanipulated hex value safely
+        printf("Readregister actual raw hex: 0x%02X\r\n", rohofmode);
+        fflush(stdout);
+
         static const char* const MODE_STRINGS[] = {
             "SLEEP",        // 0x00
             "STANDBY",      // 0x01
@@ -891,11 +907,10 @@ LoraStateSnapshot LoraController::getSnapshot() {
             "RXSINGLE",     // 0x06
             "CAD"           // 0x07
         };
-        uint8_t rawMode = readRegister(0x01) & 0x07U;
-        printf("Readregister: 0x02%X\r\n", readRegister(0x01));
+
         strncpy(snapshot.currentModeStr, MODE_STRINGS[rawMode], sizeof(snapshot.currentModeStr));
 
-        // Mutex sofort wieder freigeben, um das LoRa-System nicht zu blockieren
+        // Release mutex immediately
         xSemaphoreGive(m_stateMutex);
     }
 
