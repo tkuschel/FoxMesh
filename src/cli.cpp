@@ -95,7 +95,8 @@ void process_command(const char* cmd) {
         printf("  test-display       - Run a comprehensive visual test suite\r\n");
     }
     else if (strcmp(cmd, "version") == 0) {
-        printf("%s System - Running Version: %s\r\n", Config::PROJECT_TITLE, Config::PROJECT_VERSION);
+        printf("%s System - Running Version: %s Tag: " GIT_TAG "\r\n", Config::PROJECT_TITLE, Config::PROJECT_VERSION);
+        printf("Build Date: " __DATE__ ", Git-Hash: " GIT_HASH "\r\n");
     }
     else if (strcmp(cmd, "status") == 0) {
         printf("--- %s Status ---\r\n", Config::PROJECT_TITLE);

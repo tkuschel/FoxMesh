@@ -8,6 +8,10 @@
  * For the full license terms, see the LICENSE file in the project root.
  */
 
+#ifndef GIT_TAG
+  #define GIT_TAG "unknown"
+#endif
+
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -127,12 +131,10 @@ extern "C" {
         // Trigger synchronous welcome splash screen frame
         if (display != nullptr) {
             char msg[32];
-            //display->printMessage(0, "FoxMesh " Config::PROJECT_VERSION " \x86" "OE3TKT");
-            snprintf(msg, sizeof(msg), "FoxMesh %s", Config::PROJECT_VERSION);
+            snprintf(msg, sizeof(msg), "FoxMesh " GIT_TAG);
             display->printMessage(0, msg);
-            display->appendMessage(0, "OE3TKT", 15*6);
+            // display->appendMessage(0, GIT_TAG, 12*6);
             display->printMessage(1, "----------------------");
-            //display->printMessage(2, "Bärbel frühstückt ©");
         }
         // Main system watchdog and status monitor loop
         while (true) {
@@ -140,6 +142,7 @@ extern "C" {
                  Config::PROJECT_TITLE,
                  Config::PROJECT_VERSION,
                  (unsigned long)esp_get_free_heap_size());
+            // ESP_LOGI(TAG, "Git-Hash: %s", GIT_HASH);
 
             vTaskDelay(pdMS_TO_TICKS(5000));
         }

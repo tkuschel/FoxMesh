@@ -22,7 +22,7 @@
 namespace Config {
     // Compile-time constants with strict type enforcement
     constexpr const char* PROJECT_TITLE   = "FoxMesh";
-    constexpr const char* PROJECT_VERSION = "1.0.3";
+    constexpr const char* PROJECT_VERSION = "1.0";
     constexpr const char* PROJECT_AUTHORS = "Tom OE3TKT";
 
     // CLI Mute Configuration
