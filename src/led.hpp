@@ -2,7 +2,7 @@
  * @file led.hpp
  * @brief Thread-safe hardware LED controller with dynamic profile configuration
  * @author OM Tom (OE3TKT)
- * 
+ *
  * @license SPDX-License-Identifier: MIT
  * @copyright Copyright (c) 2026 OM Tom (OE3TKT)
  * For the full license terms, see the LICENSE file in the project root.
@@ -46,7 +46,7 @@ public:
 private:
     const gpio_num_t m_gpioPin;
     static const char* TAG;
-    
+
     // Track the internal task handle to allow cross-thread signaling via notifications
     TaskHandle_t m_taskHandle = nullptr;
 

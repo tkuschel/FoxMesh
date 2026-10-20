@@ -48,6 +48,7 @@ public:
         printMessage(static_cast<uint8_t>(line | 0x80), text, startX);
     }
 
+
 private:
     // Internal structure mapping the safe asynchronous data pipeline
     struct DisplayMessage {
@@ -67,3 +68,10 @@ private:
     esp_err_t sendCommand(uint8_t cmd) const;
     esp_err_t initializeHardware();
 };
+
+/**
+ * @brief Run a comprehensive visual test suite and clear the screen after 5 seconds.
+ *        Note: This is a global helper function decoupled from the main class interface.
+ * @param display Pointer to the active DisplayController instance.
+ */
+void run_display_font_test(DisplayController* display);

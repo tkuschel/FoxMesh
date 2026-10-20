@@ -22,7 +22,7 @@
 namespace Config {
     // Compile-time constants with strict type enforcement
     constexpr const char* PROJECT_TITLE   = "FoxMesh";
-    constexpr const char* PROJECT_VERSION = "1.0.3";
+    constexpr const char* PROJECT_VERSION = "0.1";
     constexpr const char* PROJECT_AUTHORS = "Tom OE3TKT";
 
     // CLI Mute Configuration
@@ -71,12 +71,6 @@ namespace Config {
     // Expand hardware preamble length to 12 symbols for robust network correlation (MeshCom value)
     constexpr uint8_t LORA_PREAMBLE_LENGTH_MSB = 0x00;
     constexpr uint8_t LORA_PREAMBLE_LENGTH_LSB = 0x0C; // Semtech Factor Default is 0x08, MeshCom with 0x0C, i.e. 12 symbols
-
-    // Modem Config 1: BW 250kHz (0x80), CR 4/6 (0x04), Explicit Header (0x00) -> 0x84
-    // constexpr uint8_t LORA_MODEM_CONFIG_1 = 0x84;   // @TODO: will be removed in v1.1
-
-    // Modem Config 2: SF11 (0xB0), TX Continuous off (0x00), CRC On (0x04) -> 0xB4
-    // constexpr uint8_t LORA_MODEM_CONFIG_2 = 0xB4;   // @TODO: will be removed in v1.1
 
     // --- DYNAMIC COMPILE-TIME BIT-SHIFTING EXPRESSIONS ---
 

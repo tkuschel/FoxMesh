@@ -116,26 +116,139 @@ static const uint8_t font_5x7[][5] = {
     {0x00, 0x00, 0x77, 0x00, 0x00}, // 124 |
     {0x00, 0x41, 0x36, 0x08, 0x00}, // 125 }
     {0x08, 0x08, 0x2a, 0x1c, 0x08}, // 126 ~
-    // German Umlaute mappings
-//    {0x7d, 0x11, 0x11, 0x11, 0x7d}, // 127 Ä
-//    {0x3c, 0x41, 0x41, 0x41, 0x3c}, // 128 Ö
-//    {0x3d, 0x40, 0x40, 0x40, 0x3d}, // 129 Ü
-//    {0x20, 0x55, 0x54, 0x54, 0x78}, // 130 ä
-//    {0x38, 0x54, 0x54, 0x54, 0x38}, // 131 ö
-//    {0x3c, 0x40, 0x40, 0x20, 0x7c}, // 132 ü
-//    {0x7f, 0x49, 0x49, 0x36, 0x20}  // 133 ß
-    // new German  Umlaute mapping (5x7/5x8 Font Matrix)
-    {0,0,0,0,0}, //127 not allowed
-    {0x7d, 0x13, 0x13, 0x13, 0x7d}, // 128 Ä
-    {0x3c, 0x43, 0x43, 0x43, 0x3c}, // 129 Ö
-    {0x3d, 0x42, 0x42, 0x42, 0x3d}, // 130 Ü
-    {0x20, 0x55, 0x54, 0x54, 0x78}, // 131 ä
-    {0x38, 0x55, 0x55, 0x55, 0x38}, // 132 ö
-    {0x3c, 0x42, 0x42, 0x22, 0x7c}, // 133 ü
-    {0x7f, 0x49, 0x49, 0x36, 0x00}, // 134 ß (Letzte Spalte auf 0x00 bereinigt)
-//    {0x3c, 0x42, 0x51, 0x4a, 0x34}  // 134 © Copyright
-//    {0x3c, 0x42, 0x4d, 0x4d, 0x32} // 135
-    {0x3c, 0x42, 0x95, 0x95, 0x52}
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 127 DEL (Control character)
+
+    // --- UTF-8 0xC2 RANGE (ISO-8859-1 Indizes 128 to 191) ---
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 128 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 129 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 130 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 131 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 132 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 133 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 134 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 135 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 136 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 137 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 138 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 139 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 140 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 141 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 142 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 143 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 144 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 145 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 146 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 147 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 148 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 149 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 150 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 151 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 152 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 153 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 154 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 155 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 156 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 157 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 158 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 159 Padding (Control character)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 160 Non-breaking space
+    {0x00, 0x00, 0x2f, 0x00, 0x00}, // 161 Inverted exclamation mark (¡)
+    {0x43, 0x4c, 0x78, 0x4c, 0x43}, // 162 Cent sign (¢)
+    {0x18, 0x7c, 0x14, 0x3c, 0x54}, // 163 Pound sign (£)
+    {0x6c, 0x6c, 0x6c, 0x6c, 0x6c}, // 164 Currency sign (¤)
+    {0x30, 0x78, 0x4d, 0x78, 0x30}, // 165 Yen sign (¥)
+    {0x00, 0x00, 0x77, 0x00, 0x00}, // 166 Broken bar (¦)
+    {0x00, 0x4d, 0x4d, 0x6c, 0x00}, // 167 Section sign / Paragraph (§)
+    {0x00, 0x00, 0x01, 0x00, 0x00}, // 168 Diaeresis (¨)
+    {0x00, 0x15, 0x16, 0x7c, 0x14}, // 169 Copyright sign (©)
+    {0x00, 0x42, 0x7b, 0x42, 0x42}, // 170 Feminine ordinal indicator (ª)
+    {0x08, 0x14, 0x2a, 0x14, 0x22}, // 171 Left-pointing double-angle quotation mark («)
+    {0x04, 0x04, 0x04, 0x04, 0x1c}, // 172 Not sign (¬)
+    {0x00, 0x08, 0x08, 0x08, 0x00}, // 173 Soft hyphen
+    {0x00, 0x14, 0x14, 0x14, 0x14}, // 174 Registered sign (®)
+    {0x00, 0x02, 0x02, 0x02, 0x02}, // 175 Macron (¯)
+    {0x00, 0x03, 0x03, 0x00, 0x00}, // 176 Degree sign (°)
+    {0x44, 0x44, 0x5f, 0x44, 0x44}, // 177 Plus-minus sign (±)
+    {0x00, 0x00, 0x07, 0x04, 0x04}, // 178 Superscript two (²)
+    {0x00, 0x00, 0x05, 0x05, 0x07}, // 179 Superscript three (³)
+    {0x02, 0x01, 0x02, 0x04, 0x00}, // 180 Acute accent (´)
+    {0x30, 0x48, 0x30, 0x08, 0x06}, // 181 Micro sign (µ)
+    {0x00, 0x6e, 0x6e, 0x6e, 0x00}, // 182 Pilcrow sign / Paragraph sign (¶)
+    {0x00, 0x00, 0x04, 0x00, 0x00}, // 183 Middle dot (·)
+    {0x00, 0x40, 0x44, 0x40, 0x40}, // 184 Cedilla (¸)
+    {0x00, 0x00, 0x01, 0x00, 0x00}, // 185 Superscript one (¹)
+    {0x00, 0x44, 0x7d, 0x40, 0x00}, // 186 Masculine ordinal indicator (º)
+    {0x22, 0x14, 0x2a, 0x14, 0x08}, // 187 Right-pointing double-angle quotation mark (»)
+    {0x1c, 0x22, 0x49, 0x49, 0x30}, // 188 Vulgar fraction one quarter (¼)
+    {0x38, 0x44, 0x54, 0x24, 0x18}, // 189 Vulgar fraction one half (½)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 190 Vulgar fraction three quarters (¾)
+    {0x40, 0x00, 0x45, 0x06, 0x00}, // 191 Inverted question mark (¿)
+
+    // --- UTF-8 0xC3 RANGE (ISO-8859-1 Indizes 192 to 255) ---
+    {0x7c, 0x12, 0x11, 0x12, 0x7c}, // 192 Capital A with grave (À)
+    {0x7c, 0x11, 0x12, 0x14, 0x78}, // 193 Capital A with acute (Á)
+    {0x7c, 0x15, 0x16, 0x14, 0x7c}, // 194 Capital A with circumflex (Â)
+    {0x7c, 0x16, 0x19, 0x16, 0x7c}, // 195 Capital A with tilde (Ã)
+    {0x7c, 0x11, 0x13, 0x11, 0x7c}, // 196 Capital A with umlaut (Ä)
+    {0x7c, 0x11, 0x15, 0x11, 0x7c}, // 197 Capital A with ring above (Å)
+    {0x7e, 0x51, 0x7f, 0x41, 0x73}, // 198 Capital AE ligature (Æ)
+    {0x3e, 0x41, 0x49, 0x22, 0x10}, // 199 Capital C with cedilla (Ç)
+    {0x7f, 0x4a, 0x49, 0x4a, 0x41}, // 200 Capital E with grave (È)
+    {0x7f, 0x49, 0x4a, 0x4c, 0x40}, // 201 Capital E with acute (É)
+    {0x7f, 0x4d, 0x4e, 0x4d, 0x41}, // 202 Capital E with circumflex (Ê)
+    {0x7f, 0x49, 0x4b, 0x49, 0x41}, // 203 Capital E with umlaut (Ë)
+    {0x00, 0x42, 0x7d, 0x40, 0x00}, // 204 Capital I with grave (Ì)
+    {0x00, 0x40, 0x7d, 0x42, 0x00}, // 205 Capital I with acute (Í)
+    {0x00, 0x46, 0x7d, 0x46, 0x00}, // 206 Capital I with circumflex (Î)
+    {0x00, 0x45, 0x7d, 0x45, 0x00}, // 207 Capital I with umlaut (Ï)
+    {0x7f, 0x41, 0x41, 0x22, 0x1c}, // 208 Capital Eth (Ð)
+    {0x7f, 0x05, 0x06, 0x0c, 0x7f}, // 209 Capital N with tilde (Ñ)
+    {0x3e, 0x42, 0x41, 0x42, 0x3e}, // 210 Capital O with grave (Ò)
+    {0x3e, 0x40, 0x41, 0x42, 0x3c}, // 211 Capital O with acute (Ó)
+    {0x3e, 0x44, 0x45, 0x44, 0x3e}, // 212 Capital O with circumflex (Ô)
+    {0x3e, 0x45, 0x46, 0x45, 0x3e}, // 213 Capital O with tilde (Õ)
+    {0x3e, 0x41, 0x43, 0x41, 0x3e}, // 214 Capital O with umlaut (Ö)
+    {0x22, 0x14, 0x08, 0x14, 0x22}, // 215 Multiplication sign (×)
+    {0x2e, 0x41, 0x41, 0x41, 0x3a}, // 216 Capital O with stroke (Ø)
+    {0x3f, 0x42, 0x41, 0x40, 0x3f}, // 217 Capital U with grave (Ù)
+    {0x3f, 0x40, 0x41, 0x42, 0x3e}, // 218 Capital U with acute (Ú)
+    {0x3f, 0x44, 0x45, 0x44, 0x3f}, // 219 Capital U with circumflex (Û)
+    {0x3f, 0x41, 0x43, 0x41, 0x3f}, // 220 Capital U with umlaut (Ü)
+    {0x03, 0x08, 0x70, 0x0c, 0x03}, // 221 Capital Y with acute (Ý)
+    {0x7f, 0x49, 0x09, 0x09, 0x06}, // 222 Capital Thorn (Þ)
+    {0x7f, 0x49, 0x49, 0x36, 0x00}, // 223 Small sharp s / Eszett (ß)
+    {0x20, 0x56, 0x55, 0x56, 0x78}, // 224 Small a with grave (à)
+    {0x20, 0x55, 0x56, 0x58, 0x70}, // 225 Small a with acute (á)
+    {0x20, 0x59, 0x5a, 0x58, 0x78}, // 226 Small a with circumflex (â)
+    {0x20, 0x5a, 0x5d, 0x5a, 0x78}, // 227 Small a with tilde (ã)
+    {0x20, 0x55, 0x57, 0x55, 0x78}, // 228 Small a with umlaut (ä)
+    {0x20, 0x55, 0x59, 0x55, 0x78}, // 229 Small a with ring above (å)
+    {0x24, 0x54, 0x78, 0x54, 0x5c}, // 230 Small ae ligature (æ)
+    {0x38, 0x44, 0x4c, 0x54, 0x24}, // 231 Small c with cedilla (ç)
+    {0x38, 0x56, 0x55, 0x56, 0x18}, // 232 Small e with grave (è)
+    {0x38, 0x55, 0x56, 0x58, 0x10}, // 233 Small e with acute (é)
+    {0x38, 0x59, 0x5a, 0x58, 0x18}, // 234 Small e with circumflex (ê)
+    {0x38, 0x55, 0x57, 0x55, 0x18}, // 235 Small e with umlaut (ë)
+    {0x00, 0x45, 0x7e, 0x40, 0x00}, // 236 Small i with grave (ì)
+    {0x00, 0x40, 0x7e, 0x45, 0x00}, // 237 Small i with acute (í)
+    {0x00, 0x49, 0x7e, 0x49, 0x00}, // 238 Small i with circumflex (î)
+    {0x00, 0x46, 0x7e, 0x46, 0x00}, // 239 Small i with umlaut (ï)
+    {0x38, 0x44, 0x44, 0x48, 0x7f}, // 240 Small eth (ð)
+    {0x7c, 0x09, 0x0a, 0x04, 0x78}, // 241 Small n with tilde (ñ)
+    {0x38, 0x46, 0x45, 0x46, 0x38}, // 242 Small o with grave (ò)
+    {0x38, 0x45, 0x46, 0x48, 0x30}, // 243 Small o with acute (ó)
+    {0x38, 0x4a, 0x4b, 0x4a, 0x38}, // 244 Small o with circumflex (ô)
+    {0x38, 0x4b, 0x4c, 0x4b, 0x38}, // 245 Small o with tilde (õ)
+    {0x38, 0x45, 0x47, 0x45, 0x38}, // 246 Small o with umlaut (ö)
+    {0x08, 0x08, 0x2a, 0x08, 0x08}, // 247 Division sign (÷)
+    {0x38, 0x44, 0x44, 0x44, 0x38}, // 248 Small o with stroke (ø)
+    {0x3c, 0x42, 0x41, 0x20, 0x7c}, // 249 Small u with grave (ù)
+    {0x3c, 0x40, 0x41, 0x22, 0x78}, // 250 Small u with acute (ú)
+    {0x3c, 0x44, 0x45, 0x24, 0x7c}, // 251 Small u with circumflex (û)
+    {0x3c, 0x41, 0x43, 0x21, 0x7c}, // 252 Small u with umlaut (ü)
+    {0x0c, 0x50, 0x52, 0x50, 0x3c}, // 253 Small y with acute (ý)
+    {0x7f, 0x14, 0x14, 0x08, 0x04}, // 254 Small thorn (þ)
+    {0x0c, 0x51, 0x53, 0x51, 0x3c}  // 255 Small y with umlaut (ÿ)
 };
 
 /**
@@ -335,56 +448,48 @@ void DisplayController::run() {
                 bool validCharacter = false;
                 const size_t current_char_idx = i; // Store original index for connection logic
 
-                // Basic UTF-8 multi-byte decoder for native German Umlaute translation
+                // Multi-byte UTF-8 decoder targeting the complete ISO-8859-1 (Latin-1) spectrum
                 if ((c_primary == 0xC3 || c_primary == 0xC2) && (i + 1) < textLength) {
                     const uint8_t c_secondary = static_cast<uint8_t>(incoming.content[++i]);
 
-                    switch (c_secondary) {
-                        // 0xC3 Multi-byte compound tokens (fontIndex 128 - 133)
-                        case 0x84: fontIndex = 128; validCharacter = true; break; // Ä
-                        case 0x96: fontIndex = 129; validCharacter = true; break; // Ö
-                        case 0x9C: fontIndex = 130; validCharacter = true; break; // Ü
-                        case 0xA4: fontIndex = 131; validCharacter = true; break; // ä
-                        case 0xB6: fontIndex = 132; validCharacter = true; break; // ö
-                        case 0xBC: fontIndex = 133; validCharacter = true; break; // ü
-                        // 0xC2 Multi-byte compound tokens (fontIndex 134 - 135)
-                        case 0x9F: fontIndex = 134; validCharacter = true; break; // ß
-                        case 0xA9: fontIndex = 135; validCharacter = true; break; // ©
-                        default:   i--; // Rollback pointer if multi-byte token was invalid
-                    }
-                } else if (c_primary >= 32 && c_primary <= 126) {
+                    // Mathematical reconstruction of the raw Latin-1 byte position
+                    // 0xC3 sequence maps to 0xC0-0xFF (c_secondary + 0x40)
+                    // 0xC2 sequence maps directly to 0x80-0xBF
+                    uint8_t iso_char = (c_primary == 0xC3) ? (c_secondary + 0x40) : c_secondary;
+
+                    // Subtract table offset since font array starts at index 32 (Space)
+                    fontIndex = static_cast<size_t>(iso_char - 32);
+                    validCharacter = true;
+                }
+                // Handle standard printable 7-bit ASCII characters
+                else if (c_primary >= 32 && c_primary <= 126) {
                     fontIndex = static_cast<size_t>(c_primary - 32);
                     validCharacter = true;
                 }
 
                 if (validCharacter && totalBytesWritten < 122) {
                     uint8_t txBuffer[7];
+                    // copy all 5 font columns in a single, hardware-accelerated burst
                     txBuffer[0] = 0x40; // Data identifier
-                    txBuffer[1] = font_5x7[fontIndex][0];
-                    txBuffer[2] = font_5x7[fontIndex][1];
-                    txBuffer[3] = font_5x7[fontIndex][2];
-                    txBuffer[4] = font_5x7[fontIndex][3];
-                    txBuffer[5] = font_5x7[fontIndex][4];
+                    // txBuffer[1] = font_5x7[fontIndex][0];
+                    // txBuffer[2] = font_5x7[fontIndex][1];
+                    // txBuffer[3] = font_5x7[fontIndex][2];
+                    // txBuffer[4] = font_5x7[fontIndex][3];
+                    // txBuffer[5] = font_5x7[fontIndex][4];
+                    std::memcpy(&txBuffer[1], font_5x7[fontIndex], 5);
 
                     // Check if current character is a potential line segment
                     if (c_primary == '-' || c_primary == '_' || c_primary == '=') {
-                        bool connect = false;
+                        // Look behind: Direct boolean evaluation in a single line
+                        bool connect = (current_char_idx > 0 && incoming.content[current_char_idx - 1] == static_cast<char>(c_primary));
 
-                        // Look behind: Check if preceding byte was an identical line segment
-                        if (current_char_idx > 0) {
-                            const char prev = incoming.content[current_char_idx - 1];
-                            if (prev == static_cast<char>(c_primary)) connect = true;
-                        }
-
-                        // Look ahead: Check if succeeding byte is an identical line segment
-                        // Since 'i' was updated by multi-byte parsing, we look ahead from the current 'i'
-                        if (!connect && (i + 1) < textLength) {
-                            const char next = incoming.content[i + 1];
-                            if (next == static_cast<char>(c_primary)) connect = true;
+                        // Look ahead: Only checks if the look-behind didn't already establish a connection
+                        if (!connect && (i + 1) < textLength && incoming.content[i + 1] == static_cast<char>(c_primary)) {
+                            connect = true;
                         }
 
                         // Seamlessly bridge the 1-pixel gap if part of a multi-character line sequence
-                        txBuffer[6] = connect ? font_5x7[fontIndex][4] : 0x00;
+                        txBuffer[6] = connect ? txBuffer[5] : 0x00;
                     } else {
                         txBuffer[6] = 0x00; // Standard 1-pixel spacing for regular text elements
                     }
@@ -410,4 +515,40 @@ void DisplayController::run() {
             }
         }
     }
+}
+
+/**
+ * @brief Run a comprehensive visual test suite and clear the screen after 5 seconds.
+ * @param display Pointer to the active DisplayController instance.
+ */
+void run_display_font_test(DisplayController* display) {
+    if (display == nullptr) return;
+
+    // Test 1: Standard printable ASCII characters (Lines 0 and 1)
+    display->printMessage(0, "=== FONT TEST ===", 12);
+    display->printMessage(1, "ASCII: abcXYZ 123!?", 0);
+
+    // Test 2: Native German Umlaute via multi-byte UTF-8 (Lines 2, 3 and 4)
+    display->printMessage(2, "Umlaute: AE-OE-UE-ss", 0);
+    display->printMessage(3, "Outputs: Ä  Ö  Ü  ß", 0);
+    display->printMessage(4, "Outputs: ä  ö  ü", 0);
+
+    // Test 3: Newly supported Latin-1 symbols (Line 5)
+    display->printMessage(5, "Symbols: 23°C © 2026", 0);
+
+    // Test 4: Dynamic line-segment connection logic (Lines 6 and 7)
+    display->printMessage(6, "--------------------", 0);
+    display->printMessage(7, "Line test: ___ === _", 0);
+
+    // Let the user look at the test pattern for 60 seconds
+    vTaskDelay(pdMS_TO_TICKS(60000));
+    // Print a quick shutdown notice to the CLI console before restarting
+    printf("\r\n[SYSTEM] Visual test completed. Triggering hardware reset now...\n");
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    // Perform a clean software-controlled hardware restart of the ESP32
+    esp_restart();
+     // Clear all lines by printing empty strings (triggers Auto-Clear)
+     // for (uint8_t line = 0; line < 8; line++) {
+     //     display->printMessage(line, "", 0);
+     // }
 }

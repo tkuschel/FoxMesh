@@ -2,7 +2,7 @@
  * @file i2c.hpp
  * @brief Thread-safe I2C Master Bus Wrapper for FoxMesh
  * @author OM Tom (OE3TKT)
- * 
+ *
  * @license SPDX-License-Identifier: MIT
  * @copyright Copyright (c) 2026 OM Tom (OE3TKT)
  * For the full license terms, see the LICENSE file in the project root.
@@ -25,7 +25,7 @@ public:
 
     /**
      * @brief Scans the network space for active I2C addresses.
-     * 
+     *
      * Probes the hardware address space from 0x03 to 0x77 using low-overhead
      * commands and prints a formatted matrix directly to stdout.
      */
