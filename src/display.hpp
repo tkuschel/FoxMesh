@@ -33,13 +33,26 @@ public:
      * @brief Thread-safe non-blocking method to print a message to the OLED display.
      * @param line Destination line identifier index (0 to 7 for page addressing mode).
      * @param text Null-terminated string message (maximum 20 characters for simple lines).
+     * @param startX Starting column coordinate index on the horizontal axis (0 to 127). Defaults to 0.
      */
-    void printMessage(uint8_t line, const char* text);
+    void printMessage(uint8_t line, const char* text, uint8_t startX = 0);
+/**
+     * @brief Appends text to a line starting at a specific X coordinate WITHOUT clearing the rest of the row.
+     *        Perfect for adding dynamic values next to static labels.
+     * @param line Selected hardware page index mapping from 0 to 7.
+     * @param text Pointer to a standard null-terminated sequence of tracking information.
+     * @param startX Starting column coordinate index on the horizontal axis (0 to 127).
+     */
+    inline void appendMessage(uint8_t line, const char* text, uint8_t startX) {
+        // Automatically injects the 0x80 bit to tell the consumer task to disable auto-clear
+        printMessage(static_cast<uint8_t>(line | 0x80), text, startX);
+    }
 
 private:
     // Internal structure mapping the safe asynchronous data pipeline
     struct DisplayMessage {
         uint8_t targetLine;
+        uint8_t startX;
         char content[24];
     };
 

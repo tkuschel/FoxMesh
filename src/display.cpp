@@ -264,14 +264,16 @@ void DisplayController::startTask(uint32_t priority) {
 }
 /**
  * @brief Safe cross-core interface dispatching a text block onto the internal processing pipeline buffer.
+ * @param line Selected hardware page index mapping from 0 to 7 (Bit 7 disables Auto-Clear).
  * @param text Pointer to a standard null-terminated sequence of tracking information.
- * @param line Selected hardware page index mapping from 0 to 7.
+ * @param startX Starting column coordinate index on the horizontal axis (0 to 127).
  */
-void DisplayController::printMessage(uint8_t line, const char* text) {
+void DisplayController::printMessage(uint8_t line, const char* text, uint8_t startX) {
     if (m_msgQueue == nullptr || text == nullptr) return;
 
     DisplayMessage msg = {};
     msg.targetLine = line;
+    msg.startX = (startX > 127) ? 127 : startX; // Clamp to maximum physical display width
 
     // Thread-safe copy buffer sanitization sequence
     strncpy(msg.content, text, sizeof(msg.content) - 1);
@@ -311,56 +313,77 @@ void DisplayController::run() {
     while (true) {
         // Asynchronous structural block yield: consumes zero CPU until a new message package arrives
         if (xQueueReceive(m_msgQueue, &incoming, portMAX_DELAY) == pdTRUE) {
-            if (incoming.targetLine > 7) incoming.targetLine = 7;
 
-            // Positioning the internal hardware pointer inside the target page boundary
-            sendCommand(static_cast<uint8_t>(0xB0 + incoming.targetLine)); // Set page address boundary
-            sendCommand(0x00);                                            // Set lower column pointer
-            sendCommand(0x10);                                            // Set higher column pointer
-            uint8_t totalBytesWritten = 0;
+            // Extract the Auto-Clear suppression flag from the MSB (Bit 7) and mask the line index
+            const bool disableAutoClear = incoming.targetLine & 0x80;
+            const uint8_t cleanLine = incoming.targetLine & 0x07; // Native 0-7 clamp using bitmask
 
-            // Basic built-in 5x7 ASCII micro character font generation layer
-            // This prevents adding bloating third party render dependencies into your tight stack space
-            size_t textLength = strlen(incoming.content);
+            // POSITIONING THE HARDWARE POINTER (FIX: This line must be present!)
+            sendCommand(static_cast<uint8_t>(0xB0 + cleanLine)); // Set page address boundary
 
+            // Set the horizontal column start pointer (startX) elegantly without magic 0x00 OR-mask
+            sendCommand(static_cast<uint8_t>(incoming.startX & 0x0F));
+            sendCommand(static_cast<uint8_t>(0x10 | (incoming.startX >> 4)));
+
+            // Track absolute pixel position starting from the custom X coordinate
+            uint8_t totalBytesWritten = incoming.startX;
+            const size_t textLength = strlen(incoming.content);
             for (size_t i = 0; i < textLength; i++) {
-                uint8_t c_primary = static_cast<uint8_t>(incoming.content[i]);
+                const uint8_t c_primary = static_cast<uint8_t>(incoming.content[i]);
                 size_t fontIndex = 0;
                 bool validCharacter = false;
+                const size_t current_char_idx = i; // Store original index for connection logic before Umlaut parsing updates it
 
                 // Basic UTF-8 multi-byte decoder for native German Umlaute translation
                 if (c_primary == 0xC3 && (i + 1) < textLength) {
-                    uint8_t c_secondary = static_cast<uint8_t>(incoming.content[i + 1]);
+                    const uint8_t c_secondary = static_cast<uint8_t>(incoming.content[i + 1]);
                     i++; // Advance the pointer to consume the compound UTF-8 token pair
-
-                    if (c_secondary == 0x84) { fontIndex = 96;  validCharacter = true; } // Ä
-                    if (c_secondary == 0x96) { fontIndex = 97;  validCharacter = true; } // Ö
-                    if (c_secondary == 0x9C) { fontIndex = 98;  validCharacter = true; } // Ü
-                    if (c_secondary == 0xA4) { fontIndex = 99;  validCharacter = true; } // ä
-                    if (c_secondary == 0xB6) { fontIndex = 100;  validCharacter = true; } // ö
-                    if (c_secondary == 0xBC) { fontIndex = 101; validCharacter = true; } // ü
-                }
-                else if (c_primary == 0xC2 && (i + 1) < textLength) {
-                    uint8_t c_secondary = static_cast<uint8_t>(incoming.content[i + 1]);
+                    if (c_secondary == 0x84) { fontIndex = 128; validCharacter = true; } // Ä
+                    if (c_secondary == 0x96) { fontIndex = 129; validCharacter = true; } // Ö
+                    if (c_secondary == 0x9C) { fontIndex = 130; validCharacter = true; } // Ü
+                    if (c_secondary == 0xA4) { fontIndex = 131; validCharacter = true; } // ä
+                    if (c_secondary == 0xB6) { fontIndex = 132; validCharacter = true; } // ö
+                    if (c_secondary == 0xBC) { fontIndex = 133; validCharacter = true; } // ü
+                } else if (c_primary == 0xC2 && (i + 1) < textLength) {
+                    const uint8_t c_secondary = static_cast<uint8_t>(incoming.content[i + 1]);
                     i++;
-                    if (c_secondary == 0x9F) { fontIndex = 102; validCharacter = true; } // ß
-                    if (c_secondary == 0xA9) { fontIndex = 103; validCharacter = true; } // ©
-                }
-                else if ((c_primary >= 32 && c_primary <= 126) || (c_primary > 127 && c_primary <= 135)) {
+                    if (c_secondary == 0x9F) { fontIndex = 134; validCharacter = true; } // ß
+                    if (c_secondary == 0xA9) { fontIndex = 135; validCharacter = true; } // ©
+                } else if (c_primary >= 32 && c_primary <= 126) {
                     fontIndex = static_cast<size_t>(c_primary - 32);
                     validCharacter = true;
                 }
 
                 if (validCharacter && totalBytesWritten < 122) {
-                    uint8_t txBuffer[7] = {0};
+                    uint8_t txBuffer[7];
                     txBuffer[0] = 0x40; // Data identifier
-
                     txBuffer[1] = font_5x7[fontIndex][0];
                     txBuffer[2] = font_5x7[fontIndex][1];
                     txBuffer[3] = font_5x7[fontIndex][2];
                     txBuffer[4] = font_5x7[fontIndex][3];
                     txBuffer[5] = font_5x7[fontIndex][4];
-                    txBuffer[6] = 0x00; // 1-pixel spacing between characters
+
+                    // Check if current character is a potential line segment
+                    if (c_primary == '-' || c_primary == '_' || c_primary == '=') {
+                        bool connect = false;
+
+                        // Look behind: Check if the preceding character was an identical line segment
+                        if (current_char_idx > 0) {
+                            const char prev = incoming.content[current_char_idx - 1];
+                            if (prev == static_cast<char>(c_primary)) connect = true;
+                        }
+
+                        // Look ahead: Check if the succeeding character is an identical line segment
+                        if (!connect && (i + 1) < textLength) {
+                            const char next = incoming.content[i + 1];
+                            if (next == static_cast<char>(c_primary)) connect = true;
+                        }
+
+                        // Seamlessly bridge the 1-pixel gap if part of a multi-character line sequence
+                        txBuffer[6] = connect ? font_5x7[fontIndex][4] : 0x00;
+                    } else {
+                        txBuffer[6] = 0x00; // Standard 1-pixel spacing for regular text elements
+                    }
 
                     if (m_devHandle != nullptr) {
                         i2c_master_transmit(m_devHandle, txBuffer, sizeof(txBuffer), 50);
@@ -369,14 +392,13 @@ void DisplayController::run() {
                 }
             }
 
-            // AUTO-CLEAR: Fill the remaining horizontal page width with blank pixels to flush out trailing leftovers
-            if (totalBytesWritten < 128) {
-                uint8_t remainingBytes = static_cast<uint8_t>(128 - totalBytesWritten);
+            // AUTO-CLEAR: Fill the remaining horizontal page width with blank pixels only if flag is NOT active
+            if (!disableAutoClear && totalBytesWritten < 128) {
+                const uint8_t remainingBytes = static_cast<uint8_t>(128 - totalBytesWritten);
 
                 // Allocate a burst buffer with dynamic sizing plus control byte room
                 uint8_t flushBuffer[129] = {0};
                 flushBuffer[0] = 0x40; // Data mode identifier
-
                 if (m_devHandle != nullptr) {
                     // Send out the precise amount of zeros required to wipe the right margin clean
                     i2c_master_transmit(m_devHandle, flushBuffer, static_cast<size_t>(remainingBytes + 1), 50);

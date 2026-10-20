@@ -128,8 +128,9 @@ extern "C" {
         if (display != nullptr) {
             char msg[32];
             //display->printMessage(0, "FoxMesh " Config::PROJECT_VERSION " \x86" "OE3TKT");
-            snprintf(msg, sizeof(msg), "FoxMesh %s  OE3TKT", Config::PROJECT_VERSION);
+            snprintf(msg, sizeof(msg), "FoxMesh %s", Config::PROJECT_VERSION);
             display->printMessage(0, msg);
+            display->appendMessage(0, "OE3TKT", 15*6);
             display->printMessage(1, "----------------------");
             //display->printMessage(2, "Bärbel frühstückt ©");
         }
