@@ -318,7 +318,7 @@ void DisplayController::run() {
             const bool disableAutoClear = incoming.targetLine & 0x80;
             const uint8_t cleanLine = incoming.targetLine & 0x07; // Native 0-7 clamp using bitmask
 
-            // POSITIONING THE HARDWARE POINTER (FIX: This line must be present!)
+            // POSITIONING THE HARDWARE POINTER
             sendCommand(static_cast<uint8_t>(0xB0 + cleanLine)); // Set page address boundary
 
             // Set the horizontal column start pointer (startX) elegantly without magic 0x00 OR-mask
@@ -328,27 +328,30 @@ void DisplayController::run() {
             // Track absolute pixel position starting from the custom X coordinate
             uint8_t totalBytesWritten = incoming.startX;
             const size_t textLength = strlen(incoming.content);
+
             for (size_t i = 0; i < textLength; i++) {
                 const uint8_t c_primary = static_cast<uint8_t>(incoming.content[i]);
                 size_t fontIndex = 0;
                 bool validCharacter = false;
-                const size_t current_char_idx = i; // Store original index for connection logic before Umlaut parsing updates it
+                const size_t current_char_idx = i; // Store original index for connection logic
 
                 // Basic UTF-8 multi-byte decoder for native German Umlaute translation
-                if (c_primary == 0xC3 && (i + 1) < textLength) {
-                    const uint8_t c_secondary = static_cast<uint8_t>(incoming.content[i + 1]);
-                    i++; // Advance the pointer to consume the compound UTF-8 token pair
-                    if (c_secondary == 0x84) { fontIndex = 128; validCharacter = true; } // Ä
-                    if (c_secondary == 0x96) { fontIndex = 129; validCharacter = true; } // Ö
-                    if (c_secondary == 0x9C) { fontIndex = 130; validCharacter = true; } // Ü
-                    if (c_secondary == 0xA4) { fontIndex = 131; validCharacter = true; } // ä
-                    if (c_secondary == 0xB6) { fontIndex = 132; validCharacter = true; } // ö
-                    if (c_secondary == 0xBC) { fontIndex = 133; validCharacter = true; } // ü
-                } else if (c_primary == 0xC2 && (i + 1) < textLength) {
-                    const uint8_t c_secondary = static_cast<uint8_t>(incoming.content[i + 1]);
-                    i++;
-                    if (c_secondary == 0x9F) { fontIndex = 134; validCharacter = true; } // ß
-                    if (c_secondary == 0xA9) { fontIndex = 135; validCharacter = true; } // ©
+                if ((c_primary == 0xC3 || c_primary == 0xC2) && (i + 1) < textLength) {
+                    const uint8_t c_secondary = static_cast<uint8_t>(incoming.content[++i]);
+
+                    switch (c_secondary) {
+                        // 0xC3 Multi-byte compound tokens (fontIndex 128 - 133)
+                        case 0x84: fontIndex = 128; validCharacter = true; break; // Ä
+                        case 0x96: fontIndex = 129; validCharacter = true; break; // Ö
+                        case 0x9C: fontIndex = 130; validCharacter = true; break; // Ü
+                        case 0xA4: fontIndex = 131; validCharacter = true; break; // ä
+                        case 0xB6: fontIndex = 132; validCharacter = true; break; // ö
+                        case 0xBC: fontIndex = 133; validCharacter = true; break; // ü
+                        // 0xC2 Multi-byte compound tokens (fontIndex 134 - 135)
+                        case 0x9F: fontIndex = 134; validCharacter = true; break; // ß
+                        case 0xA9: fontIndex = 135; validCharacter = true; break; // ©
+                        default:   i--; // Rollback pointer if multi-byte token was invalid
+                    }
                 } else if (c_primary >= 32 && c_primary <= 126) {
                     fontIndex = static_cast<size_t>(c_primary - 32);
                     validCharacter = true;
@@ -367,13 +370,14 @@ void DisplayController::run() {
                     if (c_primary == '-' || c_primary == '_' || c_primary == '=') {
                         bool connect = false;
 
-                        // Look behind: Check if the preceding character was an identical line segment
+                        // Look behind: Check if preceding byte was an identical line segment
                         if (current_char_idx > 0) {
                             const char prev = incoming.content[current_char_idx - 1];
                             if (prev == static_cast<char>(c_primary)) connect = true;
                         }
 
-                        // Look ahead: Check if the succeeding character is an identical line segment
+                        // Look ahead: Check if succeeding byte is an identical line segment
+                        // Since 'i' was updated by multi-byte parsing, we look ahead from the current 'i'
                         if (!connect && (i + 1) < textLength) {
                             const char next = incoming.content[i + 1];
                             if (next == static_cast<char>(c_primary)) connect = true;
