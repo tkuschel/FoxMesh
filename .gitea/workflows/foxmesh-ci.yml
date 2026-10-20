@@ -24,11 +24,13 @@ jobs:
       - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by Gitea!"
       - run: echo "🔎 The name of your branch is ${{ gitea.ref }} and your repository is ${{ gitea.repository }}."
 
-      # 1. Checkout the target branch
+      # 1. Checkout the target branch, with fetch-depth: 0 and fetch-tags: true -> loading all tags
       - name: Checkout Target branch
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.target_branch || github.ref }}
+          fetch-depth: 0
+          fetch-tags: true
 
       # 2. Extract Git and Date Metadata for the dynamic artifact filename
       - name: Generate Dynamic Artifact Metadata
