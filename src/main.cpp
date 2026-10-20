@@ -128,8 +128,9 @@ extern "C" {
         if (display != nullptr) {
             char msg[32];
             //display->printMessage(0, "FoxMesh " Config::PROJECT_VERSION " \x86" "OE3TKT");
-            snprintf(msg, sizeof(msg), "FoxMesh %s OE3TKT", Config::PROJECT_VERSION);
-            display->printMessage(1, msg);
+            snprintf(msg, sizeof(msg), "FoxMesh %s  OE3TKT", Config::PROJECT_VERSION);
+            display->printMessage(0, msg);
+            display->printMessage(1, "----------------------");
             //display->printMessage(2, "Bärbel frühstückt ©");
         }
         // Main system watchdog and status monitor loop

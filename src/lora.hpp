@@ -1,6 +1,6 @@
 /**
  * @file lora.hpp
- * @brief Thread-safe asynchronous Semtech SX1276 LoRa transceiver driver for FoxMesh
+ * @brief Thread-safe asynchronous Semtech SX1276 LoRa transceiver driver interface.
  * @author OM Tom (OE3TKT)
  *
  * @license SPDX-License-Identifier: MIT
@@ -15,18 +15,25 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "lora_types.hpp"
 
+
+/**
+ * @brief Controller class orchestrating hardware configurations, data transfers, and metrics collection.
+ */
 class LoraController {
 public:
+
     /**
-     * @brief Structure defining the localized packet buffer space.
+     * @brief Simple internal abstraction layer mirroring the raw incoming packet payload.
      */
     struct LoraPacket {
-        uint8_t payload[256]; ///< Raw data payload frame matching max SX1276 FIFO allocation
-        uint8_t length;       ///< Total number of active bytes captured inside the frame
-        int8_t rssi;          ///< Received Signal Strength Indicator metric in dBm
-        int8_t snr;           ///< Signal-to-Noise Ratio metric in dB
+        float rssi;            /**< High-precision calibrated received signal power in dBm. */
+        float snr;             /**< High-precision calibrated signal-to-noise ratio in dB. */
+        uint8_t length;        /**< Payload size explicitly specified in bytes. */
+        uint8_t payload[256];  /**< Fixed internal memory buffer capturing raw ingress bytes. Max SX1276 FIFO is 256. */
     };
+
 
     explicit LoraController();
     virtual ~LoraController();
@@ -55,7 +62,13 @@ public:
      * @param mid Middle Significant Byte of the frequency fraction.
      * @param lsb Least Significant Byte of the frequency fraction.
      */
-    void setFrequency(uint8_t msb, uint8_t mid, uint8_t lsb);
+    // void setFrequency(uint8_t msb, uint8_t mid, uint8_t lsb);
+
+        /**
+     * @brief Thread-safely updates the operational state tracking variables and overrides transceiver registers.
+     * @param freq_hz Core RF targeting frequency structured in absolute Hertz scale units.
+     */
+    void setFrequency(uint32_t freq_hz);
 
     /**
      * @brief Dynamically updates the LoRa signal bandwidth at runtime.
@@ -64,11 +77,15 @@ public:
     void setBandwidth(uint32_t bw_khz);
 
 private:
+    static const char* TAG;
+
     spi_device_handle_t m_spiHandle = nullptr;
     TaskHandle_t m_taskHandle = nullptr;
     SemaphoreHandle_t m_isrSemaphore = nullptr;
 
-    static const char* TAG;
+    LoraStateTable m_state;                     ///< Internal volatile tracking record data context.
+    SemaphoreHandle_t m_stateMutex = nullptr;   ///< Mutex primitive enforcing mutual exclusion over m_state modifications.
+
 
     static void taskTrampoline(void* pvParameters);
     static void IRAM_ATTR gpioIsrHandler(void* arg);
@@ -79,4 +96,18 @@ private:
 
     esp_err_t initializeHardware();
     void setModeReceiver();
+
+    void applyModemConfig();
+
+    /**
+     * @brief Evaluates raw register readings into calibrated RSSI and SNR telemetry metrics.
+     * @details Automatically compensates the RSSI offset base based on the active carrier frequency
+     *          band (Low-Band vs High-Band boundary at 525 MHz) as well as sub-noise SNR conditions.
+     * @param rawRssi The raw digital output read from RegRssiValue (0x1A).
+     * @param rawSnr The raw digital twos-complement output read from RegPktSnrValue (0x1B).
+     * @param[out] outRssi Reference destination pointer receiving the calibrated RSSI value in dBm.
+     * @param[out] outSnr Reference destination pointer receiving the calibrated SNR value in dB.
+     */
+    void calculateTelemetry(uint8_t rawRssi, uint8_t rawSnr, float& outRssi, float& outSnr);
+
 };
