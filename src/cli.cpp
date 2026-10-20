@@ -19,6 +19,7 @@
 #include "esp_log.h"
 #include "config.hpp"
 #include "lora.hpp"
+#include "display.hpp"
 
 static const char* TAG = "CLI";
 static i2c* i2c_bus = nullptr;
@@ -91,6 +92,7 @@ void process_command(const char* cmd) {
         printf("  freq <hz>          - Set dynamic radio frequency (433 / 868 MHz bounds)\r\n");
         printf("  bw <62|125|250|500>- Set dynamic LoRa bandwidth in kHz\r\n");
         printf("  i2c                - Scan the configured I2C bus infrastructure\r\n");
+        printf("  test-display       - Run a comprehensive visual test suite\r\n");
     }
     else if (strcmp(cmd, "version") == 0) {
         printf("%s System - Running Version: %s\r\n", Config::PROJECT_TITLE, Config::PROJECT_VERSION);
@@ -101,6 +103,23 @@ void process_command(const char* cmd) {
         printf("Mute Timer Period : %lu seconds\r\n", (unsigned long)current_mute_time_sec);
         printf("Target CPU Board  : ESP32\r\n");
         printf("ESP-IDF Version   : %s\r\n", esp_get_idf_version());
+
+        if (lora_system != nullptr) {
+            // atomar, thread-safe copy of telemtry data (stack allocation)
+            LoraStateSnapshot snapshot = lora_system->getSnapshot();
+
+            printf("LoRa Hardware     : %s\r\n", snapshot.isInitialized ? "INITIALIZED" : "FAILED / UNINITIALIZED");
+            printf("LoRa Transceiver  : Mode [%s]\r\n", snapshot.currentModeStr);
+            printf("LoRa Frequency    : %lu Hz\r\n", (unsigned long)snapshot.frequencyHz);
+            printf("LoRa Bandwidth    : %lu kHz\r\n", (unsigned long)snapshot.bandwidthKhz);
+            printf("LoRa SpreadingFact: SF%u\r\n", snapshot.spreadingFactor);
+            printf("LoRa Coding Rate  : 4/%u\r\n", snapshot.codingRate);
+            printf("Packets Received  : %lu\r\n", (unsigned long)snapshot.totalPacketsReceived);
+            printf("Packets Transmit  : %lu\r\n", (unsigned long)snapshot.totalPacketsTransmitted);
+            printf("History In Memory : %zu Packets\r\n", snapshot.currentHistoryCount);
+        } else {
+            printf("LoRa Snapshot     : Error (LoraController Handle uninitialized)\r\n");
+        }
     }
     else if (strncmp(cmd, "mute ", 5) == 0) {
         int parsed_time = atoi(cmd + 5);
@@ -219,6 +238,11 @@ void process_command(const char* cmd) {
         } else {
             printf("Error: I2C Bus not initialized in CLI!\r\n");
         }
+    }
+    else if (strcmp(cmd, "test-display") == 0) {
+        printf("[CLI] Triggering asynchronous OLED font verification...\n");
+        run_display_font_test(oled_display);
+        printf("[CLI] Test completed.\n");
     }
     else {
         printf("Unknown command: '%s'. Type 'help' for options.\r\n", cmd);
