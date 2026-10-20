@@ -16,6 +16,9 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "lora_types.hpp"
+#include <iostream>
+#include <string>
+#include <cstring>
 
 
 /**
@@ -76,6 +79,17 @@ public:
      */
     void setBandwidth(uint32_t bw_khz);
 
+    /**
+     * @brief Generates an atomic, high-performance runtime snapshot of configuration parameters and metrics.
+     * @details This routine performs a rapid, thread-safe memory copy of the volatile tracking state variables.
+     *          Unlike getPacketListCopy(), this method explicitly excludes the heavy heap-allocated packet list data,
+     *          making it exceptionally lightweight and highly suitable for high-frequency UI display refreshes,
+     *          CLI updates, or periodic remote health diagnostics.
+     * @note Acquires the internal synchronization mutex lock momentarily to guarantee structural telemetry alignment.
+     * @return A self-contained snapshot structure mapping the current system hardware configurations and operational counts.
+     */
+     LoraStateSnapshot getSnapshot();
+
 private:
     static const char* TAG;
 
@@ -109,5 +123,7 @@ private:
      * @param[out] outSnr Reference destination pointer receiving the calibrated SNR value in dB.
      */
     void calculateTelemetry(uint8_t rawRssi, uint8_t rawSnr, float& outRssi, float& outSnr);
+
+    size_t utf8_advance(const std::string& str, size_t start_byte, size_t num_chars);
 
 };
