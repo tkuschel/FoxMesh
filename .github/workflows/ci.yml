@@ -1,0 +1,27 @@
+# Grober Ablauf einer kostenlosen GitHub-Pipeline für ESP32
+name: ESP32 CI Pipeline
+
+on: [push, pull_request]
+
+jobs:
+  lint-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      # Schritt 1: Formatierung prüfen
+      - name: Run Clang-Format Check
+        run: clang-format --dry-run --Werror src/*.cpp
+
+      # Schritt 2: Statische Code-Analyse auf Fehler
+      - name: Run Cppcheck
+        run: cppcheck --enable=all --error-exitcode=1 src/
+
+      # Schritt 3: Sicherheit prüfen
+      - name: Run Flawfinder
+        run: flawfinder src/
+
+      # Schritt 4: Das eigentliche Kompilieren für den ESP32 (prüft, ob es überhaupt baut)
+      - name: Build ESP32 Firmware
+        run: pip install platformio && pio run

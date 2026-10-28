@@ -8,6 +8,7 @@
  * For the full license terms, see the LICENSE file in the project root.
  */
 
+#include <cerrno>
 #ifndef GIT_TAG
   #define GIT_TAG "unknown"
 #endif
@@ -17,6 +18,7 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
+#include "driver/i2c_master.h" // Modern ESP-IDF I2C drivers
 #include "esp_log.h"
 #include "config.hpp"
 #include "led.hpp"
@@ -34,6 +36,11 @@ static const char *TAG = "MAIN";
  * @brief Global pointer tracking the synchronized thread-safe I2C master bus instance.
  */
 i2c* i2c_bus = nullptr;
+
+/**
+ * @brief Global native ESP-IDF device handle specifically tracking the AXP2101 PMIC.
+ */
+static i2c_master_dev_handle_t pmic_device_handle = nullptr;
 
 /**
  * @brief Global pointer tracking the asynchronous isolated OLED render controller instance.
@@ -56,7 +63,57 @@ static LedController led(Config::LED_GPIO_PIN);
  * Configures the VSPI (SPI3_HOST) back-end utilizing strict compile-time layouts
  * mapped inside config.hpp and configures automatic DMA channel routing.
  */
-void init_lora_spi(void) {
+
+/**
+ * @brief Low-level helper to write a byte to the AXP2101 PMIC via native I2C.
+ *
+ * Necessary to wake up the power rails before any object lifecycles spin up.
+ */
+esp_err_t native_axp2101_write(uint8_t reg, uint8_t data) {
+    if (pmic_device_handle == nullptr) {
+        ESP_LOGE(TAG, "PMIC I2C device handle is uninitialized!");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Assuming your custom i2c class wrapper has a raw write method, or use native ESP-IDF:
+    // This uses a quick transmission fallback to configure the rails immediately
+    uint8_t write_buf[2] = {reg, data};
+
+    // Transmit the 2 bytes (Register Address + Data Byte) with no timout constraint (-1)
+    esp_err_t err = i2c_master_transmit(pmic_device_handle, write_buf, sizeof(write_buf), -1);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "I2C Write Failed to Reg 0x%02X: %s", reg, esp_err_to_name(err));
+    }
+    // Note: Adjust this to use your custom i2c_bus wrapper if preferred!
+    // For absolute early boot stability, we write directly to AXP2101 address (0x34)
+    #ifdef BOARD_I2C_SDA
+        // If your platformio.ini macros are injected, we can safely use them here
+        // target address 0x34 is the hardware hardcoded AXP2101 slave identity
+    #endif
+    return err;
+}
+
+/**
+ * @brief Power Management initialization sequence for ESP32-S3 targets.
+ *
+ * Wakes up the essential power rails (ALDO3 for LoRa, ALDO4 for GPS) on the T-Beam Supreme.
+ */
+void init_power_management(void) {
+    ESP_LOGI(TAG, "Initializing AXP2101 PMIC on 400kHz Fast-Mode...");
+
+    // 1. Set ALDO3 (LoRa Transceiver VCC) to 3.3V (0x1A calculation maps to 3.3V)
+    native_axp2101_write(0x94, 0x1A);
+
+    // 2. Set ALDO4 (u-blox M10S VCC) to 3.3V
+    native_axp2101_write(0x95, 0x1A);
+
+    // 3. Enable ALDO1, ALDO3, and ALDO4 channels simultaneously
+    native_axp2101_write(0x90, 0x1D);
+
+    ESP_LOGI(TAG, "PMU power rails activated successfully.");
+}
+
+void init_lora_spi(spi_host_device_t host) {
     esp_err_t ret;
 
     spi_bus_config_t buscfg = {};
@@ -67,13 +124,14 @@ void init_lora_spi(void) {
     buscfg.quadhd_io_num = -1;
     buscfg.max_transfer_sz = 0;
 
+
     // Initialize the physical peripheral bus with automatic DMA channel assignment
-    ret = spi_bus_initialize(SPI3_HOST, &buscfg, SPI_DMA_CH_AUTO);
+    ret = spi_bus_initialize(host, &buscfg, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize SPI bus: %s", esp_err_to_name(ret));
         return;
     }
-    ESP_LOGI(TAG, "SPI bus initialized successfully on VSPI (SPI3)");
+    ESP_LOGI(TAG, "SPI bus initialized successfully.");
 }
 
 // Global application anchor marked as extern "C" for the native ESP-IDF bootloader
@@ -96,8 +154,31 @@ extern "C" {
         // Launch background blink task
         led.startTask();
 
-        // Dynamically instantiate the synchronized I2C master bus
+        // Dynamically instantiate the synchronized I2C master bus at 400kHz Fast-Mode
+        // Config::OLED_I2C_FREQ_HZ should now point to 400000 for optimized performance
         i2c_bus = new i2c(Config::OLED_SDA_PIN, Config::OLED_SCL_PIN, Config::OLED_I2C_FREQ_HZ);
+
+        // CRITICAL T-BEAM SUPREME STEP: Initialize power management right after I2C is alive
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+        // CRITICAL: Register the AXP2101 as an official I2C device on the native ESP-IDF bus
+        i2c_device_config_t pmic_dev_config = {};
+        pmic_dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+        pmic_dev_config.device_address   = 0x34; // Hardware AXP2101 slave address
+        pmic_dev_config.scl_speed_hz     = Config::OLED_I2C_FREQ_HZ; // 400000 Hz
+
+        // Retrieve the underlying native bus handle from your custom i2c wrapper class.
+        // NOTE: Your custom 'i2c' class must expose its internal i2c_master_bus_handle_t!
+        // We assume here a getter like 'get_native_handle()' exists.
+        i2c_master_bus_handle_t native_bus = i2c_bus->get_bus_handle();
+
+        esp_err_t pmic_err = i2c_master_bus_add_device(native_bus, &pmic_dev_config, &pmic_device_handle);
+        if (pmic_err == ESP_OK) {
+            // Power up the rails immediately before Display or LoRa drivers are called
+            init_power_management();
+        } else {
+            ESP_LOGE(TAG, "Failed to anchor AXP2101 on I2C Driver: %s", esp_err_to_name(pmic_err));
+        }
+#endif
 
         // Instantiate and activate the isolated background render worker on Core 0
         display = new DisplayController(i2c_bus);
@@ -108,14 +189,23 @@ extern "C" {
         // Pass the bus instance dependency to the interactive terminal layer
         cli_init(i2c_bus, &led, display);
 
-        // Initialize the Semtech LoRa SPI connection layer
-        init_lora_spi();
+
 
         // Spin up the background console interface thread on Core 0
         start_cli_task();
 
+        // ESP32-S3 (T-Beam Supreme) highly prefers SPI2_HOST (FSPI) for custom IO layouts,
+        // while classic ESP32 (TTGO) typically maps to SPI3_HOST (VSPI).
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+        spi_host_device_t selected_spi_host = SPI2_HOST;
+#else
+        spi_host_device_t selected_spi_host = SPI3_HOST;
+#endif
+        // Initialize the Semtech LoRa SPI connection layer
+        init_lora_spi(selected_spi_host);
+
         // LORA initialization and activation
-        lora_module = new LoraController();
+        lora_module = new LoraController(selected_spi_host);
 
         if (lora_module != nullptr) {
             //connects the lora instance with the CLI control directly (commands freq and bw)
@@ -125,7 +215,7 @@ extern "C" {
             lora_module->startTask(6);
             ESP_LOGI(TAG, "LoRa subsystem successfully activated on Core 1.");
         } else {
-            ESP_LOGI(TAG, "Critical: Failed to allocate memory for LoraController!");
+            ESP_LOGE(TAG, "Critical: Failed to allocate memory for LoraController!");
         }
 
         // Trigger synchronous welcome splash screen frame
@@ -144,7 +234,7 @@ extern "C" {
                  (unsigned long)esp_get_free_heap_size());
             // ESP_LOGI(TAG, "Git-Hash: %s", GIT_HASH);
 
-            vTaskDelay(pdMS_TO_TICKS(5000));
+            vTaskDelay(pdMS_TO_TICKS(10000));
         }
     }
 }

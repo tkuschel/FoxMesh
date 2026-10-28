@@ -14,12 +14,12 @@
 #include "display.hpp"
 #include <cstring>
 
-const char* LoraController::TAG = "LORA";
+const char *LoraController::TAG = "LORA";
 
 /**
  * @brief Constructor initializing core FreeRTOS synchronization primitives.
  */
-LoraController::LoraController() {
+LoraController::LoraController(spi_host_device_t spi_host) : m_spi_host(spi_host) {
     m_isrSemaphore = xSemaphoreCreateBinary();
     m_stateMutex   = xSemaphoreCreateMutex();
 
@@ -83,8 +83,8 @@ void LoraController::writeRegister(uint8_t address, uint8_t value) {
 // Suppress the ISO C++ braced-groups macro expansion warning for the FreeRTOS portYIELD macro
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
-void IRAM_ATTR LoraController::gpioIsrHandler(void* arg) {
-    auto* semaphore = static_cast<SemaphoreHandle_t>(arg);
+void IRAM_ATTR LoraController::gpioIsrHandler(void *arg) {
+    auto *semaphore = static_cast<SemaphoreHandle_t>(arg);
     if (semaphore != nullptr) {
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
         xSemaphoreGiveFromISR(semaphore, &xHigherPriorityTaskWoken);
@@ -108,7 +108,7 @@ esp_err_t LoraController::initializeHardware() {
     devcfg.spics_io_num   = Config::LORA_CS_PIN;
     devcfg.queue_size     = 7;
 
-    err = spi_bus_add_device(SPI3_HOST, &devcfg, &m_spiHandle);
+    err = spi_bus_add_device(m_spi_host, &devcfg, &m_spiHandle);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to attach device handle to SPI3 host: %s", esp_err_to_name(err));
         return err;
@@ -332,7 +332,7 @@ esp_err_t LoraController::transmitFrame(const uint8_t* buffer, uint8_t length) {
     return ESP_OK;
 }
 
-void LoraController::taskTrampoline(void* pvParameters) {
+void LoraController::taskTrampoline(void *pvParameters) {
     auto* instance = static_cast<LoraController*>(pvParameters);
     if (instance != nullptr) {
         instance->run();
@@ -348,7 +348,7 @@ void LoraController::taskTrampoline(void* pvParameters) {
  * @param[out] outRssi Reference capturing the floating-point calibrated signal power in dBm.
  * @param[out] outSnr Reference capturing the floating-point calibrated signal-to-noise ratio in dB.
  */
-void LoraController::calculateTelemetry(uint8_t rawRssi, uint8_t rawSnr, float& outRssi, float& outSnr) {
+void LoraController::calculateTelemetry(uint8_t rawRssi, uint8_t rawSnr, float &outRssi, float &outSnr) {
     uint32_t currentFreq = 0;
 
     // Securely pull the active runtime frequency configuration
@@ -374,7 +374,7 @@ void LoraController::calculateTelemetry(uint8_t rawRssi, uint8_t rawSnr, float& 
 
 void LoraController::run() {
     // Lambda Object:
-    auto utf8_advance = [](const std::string& str, size_t start_byte, size_t num_chars) -> size_t {
+    auto utf8_advance = [](const std::string &str, size_t start_byte, size_t num_chars) -> size_t {
         size_t i = start_byte;
         size_t chars_counted = 0;
         while (i < str.length() && chars_counted < num_chars) {
@@ -391,7 +391,7 @@ void LoraController::run() {
     }
 
     setModeReceiver();
-    extern DisplayController* display; // Reference the global display singleton
+    extern DisplayController *display; // Reference the global display singleton
     static uint32_t packetCounter = 0; // overflow in abt. 272 years (1 packet every 2 seconds)
 
     ESP_LOGI(TAG, "LoRa RX was initialized and is running");
@@ -458,7 +458,7 @@ void LoraController::run() {
                         packet.snr);
                     display->printMessage(2, displayBuffer);
                     // we don't care about UTF-8 for now
-                    std::string text(reinterpret_cast<const char*>(packet.payload), static_cast<size_t>(packet.length));
+                    std::string text(reinterpret_cast<const char *>(packet.payload), static_cast<size_t>(packet.length));
 
                     size_t byte_pos = 0;
                     uint8_t linenr = 3; // start at line 3
@@ -491,11 +491,11 @@ void LoraController::startTask(uint32_t priority) {
     xTaskCreatePinnedToCore(
         LoraController::taskTrampoline,
         "LORA_EngineTask",
-        4096,
+        configMINIMAL_STACK_SIZE + 4096,   //Stack depth in words (not bytes in some contexts)
         this,
         priority,
         &m_taskHandle,
-        1
+        1   // Core ID: 1
     );
 }
 
@@ -531,7 +531,7 @@ LoraStateSnapshot LoraController::getSnapshot() {
         //printf("Readregister actual raw hex: 0x%02X\r\n", rohofmode);
         //fflush(stdout);
 
-        static const char* const MODE_STRINGS[] = {
+        static const char * const MODE_STRINGS[] = {
             "SLEEP",        // 0x00
             "STANDBY",      // 0x01
             "FSTX",         // 0x02

@@ -11,11 +11,6 @@
 
 #pragma once
 
-// FIXED: Native C-library standard type injections to fix upstream ESP-IDF v6.1.0 picolibc header issues
-// #include <sys/types.h>
-// #include <sys/reent.h>
-// #include <time.h>
-
 #include <cstdint>
 #include "driver/gpio.h"
 
@@ -29,30 +24,72 @@ namespace Config {
     constexpr uint32_t DEFAULT_MUTE_TIME_SEC = 30; // Logging suppression window in seconds
 
     // Hardware Configuration
-    constexpr gpio_num_t LED_GPIO_PIN     = GPIO_NUM_25;
+    // constexpr gpio_num_t LED_GPIO_PIN     = GPIO_NUM_25;
+    // Hardware LED Configuration
+    constexpr gpio_num_t LED_GPIO_PIN     = static_cast<gpio_num_t>(BOARD_LED_PIN);
     constexpr int BLINK_INTERVAL_MS       = 5000;
 
     // OLED Display I2C Bus Configuration
-    constexpr gpio_num_t OLED_SDA_PIN     = GPIO_NUM_21;
-    constexpr gpio_num_t OLED_SCL_PIN     = GPIO_NUM_22;
+    constexpr gpio_num_t OLED_SDA_PIN     = static_cast<gpio_num_t>(BOARD_I2C_SDA);
+    constexpr gpio_num_t OLED_SCL_PIN     = static_cast<gpio_num_t>(BOARD_I2C_SCL);
     constexpr uint32_t OLED_I2C_FREQ_HZ   = 400000; // 400kHz Fast Mode execution speed
     constexpr int OLED_ADDRESS            = 0x3C;   // Native SSD1306 controller hardware address
 
-    // Semtech SX1276 LoRa SPI Subsystem (TTGO T3_V1.6 Hardwired Layout)
+    // =========================================================================
+    // TARGET PER-BOARD HARDWARE ROUTING & TRANSCEIVER LAYOUT
+    // =========================================================================
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+    // -------------------------------------------------------------------------
+    // LilyGo T-Beam S3 Supreme (ESP32-S3) -> Semtech SX1262 Native Hardware
+    // -------------------------------------------------------------------------
+    constexpr gpio_num_t LORA_SCK_PIN     = static_cast<gpio_num_t>(BOARD_LORA_SCK);  // GPIO 12
+    constexpr gpio_num_t LORA_MISO_PIN    = static_cast<gpio_num_t>(BOARD_LORA_MISO); // GPIO 13
+    constexpr gpio_num_t LORA_MOSI_PIN    = static_cast<gpio_num_t>(BOARD_LORA_MOSI); // GPIO 11
+    constexpr gpio_num_t LORA_CS_PIN      = static_cast<gpio_num_t>(BOARD_LORA_CS);   // GPIO 10
+    constexpr gpio_num_t LORA_RST_PIN     = static_cast<gpio_num_t>(BOARD_LORA_RST);  // GPIO 5
+    constexpr gpio_num_t LORA_BUSY_PIN    = static_cast<gpio_num_t>(BOARD_LORA_BUSY); // GPIO 4
+    constexpr gpio_num_t LORA_DIO1_PIN    = static_cast<gpio_num_t>(BOARD_LORA_DIO1); // GPIO 1 (Primary IRQ)
+
+    // LEGACY COMPATIBILITY ALIAS: Maps the old SX127x IRQ naming convention to DIO1
+    // to keep your existing legacy driver code operational for multi-board compilation.
+    constexpr gpio_num_t LORA_IRQ_PIN     = LORA_DIO1_PIN;
+
+    // u-blox M10S GPS UART Mapping
+    constexpr int GPS_UART_NUM            = 1;                                        // Use UART1 Controller
+    constexpr gpio_num_t GPS_TX_PIN       = static_cast<gpio_num_t>(BOARD_GPS_TX);    // GPIO 8 (ESP RX)
+    constexpr gpio_num_t GPS_RX_PIN       = static_cast<gpio_num_t>(BOARD_GPS_RX);    // GPIO 9 (ESP TX)
+    constexpr gpio_num_t GPS_PPS_PIN      = static_cast<gpio_num_t>(BOARD_GPS_PPS);   // GPIO 6
+    constexpr gpio_num_t GPS_EN_PIN       = static_cast<gpio_num_t>(BOARD_GPS_EN);    // GPIO 7
+    constexpr uint32_t GPS_BAUD_RATE      = BOARD_GPS_BAUD;                           // 38400 Baud
+
+#else
+    // -------------------------------------------------------------------------
+    // TTGO LoRa32 v2.1 (Classic ESP32) -> Semtech SX1276 Legacy Hardware
+    // -------------------------------------------------------------------------
     constexpr gpio_num_t LORA_MISO_PIN    = GPIO_NUM_19;
     constexpr gpio_num_t LORA_MOSI_PIN    = GPIO_NUM_27;
     constexpr gpio_num_t LORA_SCK_PIN     = GPIO_NUM_5;
     constexpr gpio_num_t LORA_CS_PIN      = GPIO_NUM_18;
-    constexpr gpio_num_t LORA_RST_PIN     = GPIO_NUM_23; // Adjusted configuration for T3_V1.6 hardware revision
-    constexpr gpio_num_t LORA_IRQ_PIN     = GPIO_NUM_26;
-    constexpr gpio_num_t LORA_DIO1_PIN    = GPIO_NUM_33; // Important: PLL lock & Timeout in RX mode
+    constexpr gpio_num_t LORA_RST_PIN     = static_cast<gpio_num_t>(BOARD_LORA_RST);  // GPIO 23
+    constexpr gpio_num_t LORA_IRQ_PIN     = GPIO_NUM_26;                              // Maps to DIO0
+    constexpr gpio_num_t LORA_DIO1_PIN    = GPIO_NUM_33;                              // PLL Lock/Timeout
+
+    // Legacy/No GPS Fallback Profile for classic TTGO
+    constexpr int GPS_UART_NUM            = -1;
+    constexpr gpio_num_t GPS_TX_PIN       = GPIO_NUM_NC;
+    constexpr gpio_num_t GPS_RX_PIN       = GPIO_NUM_NC;
+    constexpr gpio_num_t GPS_PPS_PIN      = GPIO_NUM_NC;
+    constexpr gpio_num_t GPS_EN_PIN       = GPIO_NUM_NC;
+    constexpr uint32_t GPS_BAUD_RATE      = 9600;
+#endif
+
+    // =========================================================================
+    // LORA RF PARAMETERS & REGULATORY SETTINGS
+    // =========================================================================
 
     // Semtech SX1276 LoRa Configuration Parameters
     // 433.175 MHz is calculated by: 433175000 / (32000000 / 2^19) = 7097139.2 = 0x6c4b33 // wrong: 0x06C4CD
     constexpr uint32_t LORA_DEFAULT_FREQ_HZ = 433175000;
-    constexpr uint8_t  LORA_FRF_MSB         = 0x6C; // @TODO: will be removed in v1.1
-    constexpr uint8_t  LORA_FRF_MID         = 0x4B; // @TODO: will be removed in v1.1
-    constexpr uint8_t  LORA_FRF_LSB         = 0x33; // @TODO: will be removed in v1.1
     constexpr uint32_t LORA_DEFAULT_BW_KHZ  = 250;
     constexpr uint8_t  LORA_DEFAULT_SF      = 11;
     constexpr uint8_t  LORA_DEFAULT_CR      = 6;    // CR 4/6 -> Denominator is 6
@@ -66,11 +103,18 @@ namespace Config {
     constexpr uint8_t LORA_SYNC_WORD_ISOLATED_ARRAY_B      = 0xAA; // Custom / Experimental individual networks (highly isolated)
 
     // Active hardware synchronization configuration selector
-    constexpr uint8_t LORA_SYNC_WORD = LORA_SYNC_WORD_PUBLIC_NETWORK_MODE; // Selected default synchronization profile
+    constexpr uint8_t LORA_SYNC_WORD = LORA_SYNC_WORD_PUBLIC_NETWORK_MODE;
 
     // Expand hardware preamble length to 12 symbols for robust network correlation (MeshCom value)
+    // Expand hardware preamble length to 12 symbols for robust network correlation (MeshCom value)
+    constexpr uint16_t LORA_PREAMBLE_LENGTH = 12; // FIXED: Changed uint18_t to correct uint16_t
+
+    // Legacy SX127x Register Compatibility Array Flags (Will be bypassed by the future SX1262 driver packet structures)
+    constexpr uint8_t  LORA_FRF_MSB         = 0x6C;
+    constexpr uint8_t  LORA_FRF_MID         = 0x4B;
+    constexpr uint8_t  LORA_FRF_LSB         = 0x33;
     constexpr uint8_t LORA_PREAMBLE_LENGTH_MSB = 0x00;
-    constexpr uint8_t LORA_PREAMBLE_LENGTH_LSB = 0x0C; // Semtech Factor Default is 0x08, MeshCom with 0x0C, i.e. 12 symbols
+    constexpr uint8_t LORA_PREAMBLE_LENGTH_LSB = 0x0C;
 
     // --- DYNAMIC COMPILE-TIME BIT-SHIFTING EXPRESSIONS ---
 

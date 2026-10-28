@@ -224,7 +224,7 @@ jobs:
         set "FLASH_ARGS=!FLASH_ARGS! __FIRMWARE_ADDR__ %FIRMWARE%"
 
         echo [INFO] Flashing: !FLASH_ARGS!
-        esptool --chip esp32 --port %COMPORT% --baud 921600 write-flash -z !FLASH_ARGS!
+        python -m esptool --chip esp32 --port %COMPORT% --baud 921600 write-flash -z !FLASH_ARGS!
 
         if %ERRORLEVEL% EQU 0 (
           echo === SUCCESS! Flash operation successfully completed ===

@@ -28,8 +28,9 @@ The firmware is designed to target popular LoRa development ecosystems, with pri
 
 ## 🌐 Project Mirrors / Hosting
 To ensure high availability and decentralization, this project is maintained across multiple platforms:
-* **Primary Repo (GitHub):** [github.com/tkuschel/FoxMesh](https://github.com/tkuschel/FoxMesh)
-* **Self-Hosted Mirror (Gitea):** [git.kuschel.at/tom/FoxMesh](https://git.kuschel.at/tom/FoxMesh)
+
+* **Primary Self-Hosted Repo (Gitea):** [git.kuschel.at/tom/FoxMesh](https://git.kuschel.at/tom/FoxMesh)
+* **Mirror Repo (GitHub):** [github.com/tkuschel/FoxMesh](https://github.com/tkuschel/FoxMesh)
 
 *Note: Both repositories are automatically kept synchronized. You can clone, open issues, or contribute on either platform.*
 

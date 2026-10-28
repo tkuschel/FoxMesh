@@ -38,12 +38,12 @@ public:
     };
 
 
-    explicit LoraController();
+    explicit LoraController(spi_host_device_t spi_host);
     virtual ~LoraController();
 
     // Disallow copying to prevent duplicate hardware resource assignment
     LoraController(const LoraController&) = delete;
-    LoraController& operator=(const LoraController&) = delete;
+    LoraController &operator=(const LoraController &) = delete;
 
     /**
      * @brief Configures peripheral resources and registers the background worker thread on Core 1.
@@ -57,7 +57,7 @@ public:
      * @param length Total number of bytes to dispatch over the air interface.
      * @return esp_err_t status indicating transaction success.
      */
-    esp_err_t transmitFrame(const uint8_t* buffer, uint8_t length);
+    esp_err_t transmitFrame(const uint8_t *buffer, uint8_t length);
 
     /**
      * @brief Dynamically updates the transceiver operating frequency at runtime.
@@ -91,7 +91,9 @@ public:
      LoraStateSnapshot getSnapshot();
 
 private:
-    static const char* TAG;
+    static const char *TAG;
+
+    spi_host_device_t m_spi_host;  //internal tracker variable
 
     spi_device_handle_t m_spiHandle = nullptr;
     TaskHandle_t m_taskHandle = nullptr;
@@ -101,8 +103,8 @@ private:
     SemaphoreHandle_t m_stateMutex = nullptr;   ///< Mutex primitive enforcing mutual exclusion over m_state modifications.
 
 
-    static void taskTrampoline(void* pvParameters);
-    static void IRAM_ATTR gpioIsrHandler(void* arg);
+    static void taskTrampoline(void *pvParameters);
+    static void IRAM_ATTR gpioIsrHandler(void *arg);
 
     void run();
     uint8_t readRegister(uint8_t address);
@@ -122,8 +124,7 @@ private:
      * @param[out] outRssi Reference destination pointer receiving the calibrated RSSI value in dBm.
      * @param[out] outSnr Reference destination pointer receiving the calibrated SNR value in dB.
      */
-    void calculateTelemetry(uint8_t rawRssi, uint8_t rawSnr, float& outRssi, float& outSnr);
+    void calculateTelemetry(uint8_t rawRssi, uint8_t rawSnr, float &outRssi, float &outSnr);
 
-    size_t utf8_advance(const std::string& str, size_t start_byte, size_t num_chars);
-
+    size_t utf8_advance(const std::string &str, size_t start_byte, size_t num_chars);
 };

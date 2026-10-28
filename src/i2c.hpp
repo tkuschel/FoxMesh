@@ -20,8 +20,8 @@ public:
     ~i2c();
 
     // Disable copy semantics to prevent duplicate hardware resource assignment
-    i2c(const i2c&) = delete;
-    i2c& operator=(const i2c&) = delete;
+    i2c(const i2c &) = delete;
+    i2c &operator=(const i2c &) = delete;
 
     /**
      * @brief Scans the network space for active I2C addresses.

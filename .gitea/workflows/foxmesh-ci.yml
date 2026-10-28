@@ -5,6 +5,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ] # Trigger the workflow on pull request events targeting the main branch
+  tags:
+    - 'v*' # Triggers when a release tag like v1.0.0 is pushed
   workflow_dispatch:
     inputs:
       target_branch:
@@ -232,7 +234,7 @@ jobs:
           set "FLASH_ARGS=!FLASH_ARGS! __FIRMWARE_ADDR__ %FIRMWARE%"
 
           echo [INFO] Flashing: !FLASH_ARGS!
-          esptool --chip esp32 --port %COMPORT% --baud 921600 write-flash -z !FLASH_ARGS!
+          python -m esptool --chip esp32 --port %COMPORT% --baud 921600 write-flash -z !FLASH_ARGS!
 
           if %ERRORLEVEL% EQU 0 (
             echo === SUCCESS! Flash operation successfully completed ===
@@ -276,4 +278,4 @@ jobs:
         with:
           name: FoxMesh-${{ env.GIT_BRANCH }}-${{ env.CURRENT_DATE }}-${{ env.GIT_HASH }}
           path: deploy_package/
-        retention-days: 10 # Artifacts will be automatically deleted after 10 days
+          retention-days: 10 # Artifacts will be automatically deleted after 10 days

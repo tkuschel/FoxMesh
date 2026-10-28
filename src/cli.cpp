@@ -21,6 +21,11 @@
 #include "lora.hpp"
 #include "display.hpp"
 
+// Unified low-level hardware drivers for both targets
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+#include "driver/usb_serial_jtag.h"
+#endif
+
 static const char* TAG = "CLI";
 static i2c* i2c_bus = nullptr;
 static LedController* led_system = nullptr;
@@ -254,13 +259,25 @@ void process_command(const char* cmd) {
 }
 
 /**
- * @brief Infinite FreeRTOS task handling non-blocking background collection of serial input characters.
+ * @brief Infinite FreeRTOS task handling clean, low-overhead collection of serial input characters.
  * @param pvParameters Context input pointer passed by the task scheduler (unused).
  */
 static void cli_worker_task(void *pvParameters) {
     (void)pvParameters;
 
-    // Configure low-level peripheral settings for direct serial translation
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+    /* --- ESP32-S3 Native USB-CDC Driver Setup --- */
+    usb_serial_jtag_driver_config_t usb_config = {};
+    usb_config.rx_buffer_size = BUF_SIZE;
+    usb_config.tx_buffer_size = BUF_SIZE;
+
+    // Install the JTAG/Serial hardware driver cleanly
+    esp_err_t usb_err = usb_serial_jtag_driver_install(&usb_config);
+    if (usb_err != ESP_OK && usb_err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGE(TAG, "Failed to mount USB Serial core hardware driver.");
+    }
+#else
+    /* --- Classic TTGO UART0 Hardware Setup --- */
     uart_config_t uart_config = {};
     uart_config.baud_rate     = 115200;
     uart_config.data_bits     = UART_DATA_8_BITS;
@@ -269,9 +286,9 @@ static void cli_worker_task(void *pvParameters) {
     uart_config.flow_ctrl     = UART_HW_FLOWCTRL_DISABLE;
     uart_config.source_clk    = UART_SCLK_DEFAULT;
 
-    // Direct registration of system driver assets bypassing explicit peripheral queue maps
     ESP_ERROR_CHECK(uart_param_config(CLI_UART_PORT, &uart_config));
     ESP_ERROR_CHECK(uart_driver_install(CLI_UART_PORT, BUF_SIZE * 2, 0, 0, nullptr, 0));
+#endif
 
     char line_buffer[BUF_SIZE];
     int buffer_index = 0;
@@ -281,16 +298,22 @@ static void cli_worker_task(void *pvParameters) {
     printf("%s # ", Config::PROJECT_TITLE);
     fflush(stdout);
 
-    uint8_t data = 0;
     while (1) {
-        // Evaluate input character frames utilizing a non-blocking asynchronous approach
-        int len = uart_read_bytes(CLI_UART_PORT, &data, 1, pdMS_TO_TICKS(20));
+        uint8_t data = 0;
+        int len = 0;
+
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+        // Highly efficient blocking hardware read via USB controller interrupts (20ms yield timeout)
+        len = usb_serial_jtag_read_bytes(&data, 1, pdMS_TO_TICKS(20));
+#else
+        // Highly efficient blocking hardware read via UART controller interrupts (20ms yield timeout)
+        len = uart_read_bytes(CLI_UART_PORT, &data, 1, pdMS_TO_TICKS(20));
+#endif
 
         if (len > 0) {
-            // Drop system verbosity parameters globally during active interaction sequence
+            // Suppress system debug verbosity during active user typing interaction
             esp_log_level_set("*", ESP_LOG_NONE);
 
-            // FIXED: Only reset the timer if we are not in permanent infinite mute mode (current_mute_time_sec != 0)
             if (silence_timer != nullptr && current_mute_time_sec != 0) {
                 xTimerReset(silence_timer, pdMS_TO_TICKS(10));
             }
@@ -307,19 +330,16 @@ static void cli_worker_task(void *pvParameters) {
                 printf("\b \b");
                 fflush(stdout);
             }
-            // Sanitize and append terminal symbols (including UTF-8 multi-byte characters like German Umlaute)
+            // Sanitize and append terminal symbols (supports multi-byte chars like German Umlaute)
             else if (((data >= 32 && data <= 126) || data >= 128) && buffer_index < (BUF_SIZE - 1)) {
                 line_buffer[buffer_index++] = static_cast<char>(data);
                 printf("%c", data);
-                //fflush(stdout);
-                // direct write into uart buffer, used for utf-8
-                //uart_write_bytes(CLI_UART_PORT, &data, 1);
+                fflush(stdout);
             }
         }
-        // Structural task yields preventing internal stack watchdog violations
-        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
+
 
 void start_cli_task(void) {
     // FIXED: Pre-calculated dynamic period duration variable ensuring safe macro consumption

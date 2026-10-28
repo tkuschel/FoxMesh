@@ -15,7 +15,7 @@
 #include "esp_log.h"
 #include "config.hpp"
 
-static const char* TAG = "DISPLAY";
+static const char *TAG = "DISPLAY";
 
 // Standard 5x7 ASCII Font Table (covers characters from ASCII 32 ' ' to 126 '~')
 // Each character consists of 5 vertical column bytes
@@ -117,7 +117,6 @@ static const uint8_t font_5x7[][5] = {
     {0x00, 0x41, 0x36, 0x08, 0x00}, // 125 }
     {0x08, 0x08, 0x2a, 0x1c, 0x08}, // 126 ~
     {0x00, 0x00, 0x00, 0x00, 0x00}, // 127 DEL (Control character)
-
     // --- UTF-8 0xC2 RANGE (ISO-8859-1 Indizes 128 to 191) ---
     {0x00, 0x00, 0x00, 0x00, 0x00}, // 128 Padding (Control character)
     {0x00, 0x00, 0x00, 0x00, 0x00}, // 129 Padding (Control character)
@@ -152,110 +151,109 @@ static const uint8_t font_5x7[][5] = {
     {0x00, 0x00, 0x00, 0x00, 0x00}, // 158 Padding (Control character)
     {0x00, 0x00, 0x00, 0x00, 0x00}, // 159 Padding (Control character)
     {0x00, 0x00, 0x00, 0x00, 0x00}, // 160 Non-breaking space
-    {0x00, 0x00, 0x2f, 0x00, 0x00}, // 161 Inverted exclamation mark (¡)
-    {0x43, 0x4c, 0x78, 0x4c, 0x43}, // 162 Cent sign (¢)
-    {0x18, 0x7c, 0x14, 0x3c, 0x54}, // 163 Pound sign (£)
-    {0x6c, 0x6c, 0x6c, 0x6c, 0x6c}, // 164 Currency sign (¤)
-    {0x30, 0x78, 0x4d, 0x78, 0x30}, // 165 Yen sign (¥)
-    {0x00, 0x00, 0x77, 0x00, 0x00}, // 166 Broken bar (¦)
-    {0x00, 0x4d, 0x4d, 0x6c, 0x00}, // 167 Section sign / Paragraph (§)
-    {0x00, 0x00, 0x01, 0x00, 0x00}, // 168 Diaeresis (¨)
-    {0x00, 0x15, 0x16, 0x7c, 0x14}, // 169 Copyright sign (©)
-    {0x00, 0x42, 0x7b, 0x42, 0x42}, // 170 Feminine ordinal indicator (ª)
-    {0x08, 0x14, 0x2a, 0x14, 0x22}, // 171 Left-pointing double-angle quotation mark («)
-    {0x04, 0x04, 0x04, 0x04, 0x1c}, // 172 Not sign (¬)
-    {0x00, 0x08, 0x08, 0x08, 0x00}, // 173 Soft hyphen
-    {0x00, 0x14, 0x14, 0x14, 0x14}, // 174 Registered sign (®)
-    {0x00, 0x02, 0x02, 0x02, 0x02}, // 175 Macron (¯)
-    {0x00, 0x03, 0x03, 0x00, 0x00}, // 176 Degree sign (°)
-    {0x44, 0x44, 0x5f, 0x44, 0x44}, // 177 Plus-minus sign (±)
-    {0x00, 0x00, 0x07, 0x04, 0x04}, // 178 Superscript two (²)
-    {0x00, 0x00, 0x05, 0x05, 0x07}, // 179 Superscript three (³)
-    {0x02, 0x01, 0x02, 0x04, 0x00}, // 180 Acute accent (´)
-    {0x30, 0x48, 0x30, 0x08, 0x06}, // 181 Micro sign (µ)
-    {0x00, 0x6e, 0x6e, 0x6e, 0x00}, // 182 Pilcrow sign / Paragraph sign (¶)
-    {0x00, 0x00, 0x04, 0x00, 0x00}, // 183 Middle dot (·)
-    {0x00, 0x40, 0x44, 0x40, 0x40}, // 184 Cedilla (¸)
-    {0x00, 0x00, 0x01, 0x00, 0x00}, // 185 Superscript one (¹)
-    {0x00, 0x44, 0x7d, 0x40, 0x00}, // 186 Masculine ordinal indicator (º)
-    {0x22, 0x14, 0x2a, 0x14, 0x08}, // 187 Right-pointing double-angle quotation mark (»)
-    {0x1c, 0x22, 0x49, 0x49, 0x30}, // 188 Vulgar fraction one quarter (¼)
-    {0x38, 0x44, 0x54, 0x24, 0x18}, // 189 Vulgar fraction one half (½)
+    {0x00, 0x00, 0x5f, 0x00, 0x00}, // 161 Inverted exclamation mark (¡)
+    {0x24, 0x2a, 0x7f, 0x2a, 0x12}, // 162 Cent sign (¢)
+    {0x10, 0x7e, 0x24, 0x44, 0x28}, // 163 Pound sign (£)
+    {0x6c, 0x28, 0x28, 0x28, 0x6c}, // 164 Currency sign (¤)
+    {0x08, 0x3e, 0x49, 0x3e, 0x08}, // 165 Yen sign (¥)
+    {0x00, 0x00, 0x5f, 0x00, 0x00}, // 166 Broken bar (¦) (Alternativ durchgezogen)
+    {0x22, 0x49, 0x49, 0x49, 0x22}, // 167 Section sign / Paragraph (§)
+    {0x00, 0x03, 0x00, 0x03, 0x00}, // 168 Diaeresis (¨)
+    {0x3e, 0x41, 0x5d, 0x49, 0x3e}, // 169 Copyright sign (©)
+    {0x44, 0x28, 0x3e, 0x44, 0x3e}, // 170 Feminine ordinal indicator (ª)
+    {0x08, 0x14, 0x22, 0x00, 0x00}, // 171 Left-pointing double-angle quotation mark («)
+    {0x04, 0x04, 0x04, 0x04, 0x07}, // 172 Not sign (¬)
+    {0x04, 0x04, 0x04, 0x04, 0x04}, // 173 Soft hyphen
+    {0x3e, 0x41, 0x5d, 0x55, 0x3e}, // 174 Registered sign (®)
+    {0x01, 0x01, 0x01, 0x01, 0x01}, // 175 Macron (¯)
+    {0x00, 0x06, 0x09, 0x06, 0x00}, // 176 Degree sign (°)
+    {0x08, 0x08, 0x3e, 0x08, 0x08}, // 177 Plus-minus sign (±) (Unterstrich wird dynamisch generiert/Zweit-Byte)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 178 Superscript two (²) -> Oft custom generiert
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 179 Superscript three (³) -> Oft custom generiert
+    {0x00, 0x01, 0x02, 0x04, 0x00}, // 180 Acute accent (´)
+    {0x3c, 0x0a, 0x0a, 0x0a, 0x02}, // 181 Micro sign (µ)
+    {0x06, 0x7f, 0x4b, 0x4b, 0x3a}, // 182 Pilcrow sign / Paragraph sign (¶)
+    {0x00, 0x00, 0x0c, 0x0c, 0x00}, // 183 Middle dot (·)
+    {0x10, 0x20, 0x00, 0x00, 0x00}, // 184 Cedilla (¸)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 185 Superscript one (¹)
+    {0x38, 0x44, 0x44, 0x44, 0x38}, // 186 Masculine ordinal indicator (º)
+    {0x00, 0x00, 0x22, 0x14, 0x08}, // 187 Right-pointing double-angle quotation mark (»)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 188 Vulgar fraction one quarter (¼)
+    {0x00, 0x00, 0x00, 0x00, 0x00}, // 189 Vulgar fraction one half (½)
     {0x00, 0x00, 0x00, 0x00, 0x00}, // 190 Vulgar fraction three quarters (¾)
-    {0x40, 0x00, 0x45, 0x06, 0x00}, // 191 Inverted question mark (¿)
-
+    {0x30, 0x48, 0x4a, 0x40, 0x20}, // 191 Inverted question mark (¿)
     // --- UTF-8 0xC3 RANGE (ISO-8859-1 Indizes 192 to 255) ---
-    {0x7c, 0x12, 0x11, 0x12, 0x7c}, // 192 Capital A with grave (À)
-    {0x7c, 0x11, 0x12, 0x14, 0x78}, // 193 Capital A with acute (Á)
-    {0x7c, 0x15, 0x16, 0x14, 0x7c}, // 194 Capital A with circumflex (Â)
-    {0x7c, 0x16, 0x19, 0x16, 0x7c}, // 195 Capital A with tilde (Ã)
-    {0x7c, 0x11, 0x13, 0x11, 0x7c}, // 196 Capital A with umlaut (Ä)
-    {0x7c, 0x11, 0x15, 0x11, 0x7c}, // 197 Capital A with ring above (Å)
-    {0x7e, 0x51, 0x7f, 0x41, 0x73}, // 198 Capital AE ligature (Æ)
-    {0x3e, 0x41, 0x49, 0x22, 0x10}, // 199 Capital C with cedilla (Ç)
-    {0x7f, 0x4a, 0x49, 0x4a, 0x41}, // 200 Capital E with grave (È)
-    {0x7f, 0x49, 0x4a, 0x4c, 0x40}, // 201 Capital E with acute (É)
-    {0x7f, 0x4d, 0x4e, 0x4d, 0x41}, // 202 Capital E with circumflex (Ê)
-    {0x7f, 0x49, 0x4b, 0x49, 0x41}, // 203 Capital E with umlaut (Ë)
+    {0x7c, 0x13, 0x11, 0x10, 0x7c}, // 192 Capital A with grave (À)
+    {0x7c, 0x10, 0x11, 0x13, 0x7c}, // 193 Capital A with acute (Á)
+    {0x7c, 0x12, 0x15, 0x12, 0x7c}, // 194 Capital A with circumflex (Â)
+    {0x7c, 0x12, 0x15, 0x12, 0x7c}, // 195 Capital A with tilde (Ã)
+    {0x7c, 0x11, 0x11, 0x11, 0x7c}, // 196 Capital A with umlaut (Ä)
+    {0x7c, 0x11, 0x11, 0x11, 0x7c}, // 197 Capital A with ring above (Å)
+    {0x7f, 0x49, 0x7f, 0x41, 0x63}, // 198 Capital AE ligature (Æ)
+    {0x3e, 0x41, 0x41, 0x22, 0x18}, // 199 Capital C with cedilla (Ç)
+    {0x7f, 0x4a, 0x4a, 0x42, 0x42}, // 200 Capital E with grave (È)
+    {0x7f, 0x42, 0x4a, 0x4a, 0x42}, // 201 Capital E with acute (É)
+    {0x7f, 0x43, 0x4d, 0x43, 0x41}, // 202 Capital E with circumflex (Ê)
+    {0x7f, 0x41, 0x41, 0x41, 0x41}, // 203 Capital E with umlaut (Ë)
     {0x00, 0x42, 0x7d, 0x40, 0x00}, // 204 Capital I with grave (Ì)
     {0x00, 0x40, 0x7d, 0x42, 0x00}, // 205 Capital I with acute (Í)
-    {0x00, 0x46, 0x7d, 0x46, 0x00}, // 206 Capital I with circumflex (Î)
-    {0x00, 0x45, 0x7d, 0x45, 0x00}, // 207 Capital I with umlaut (Ï)
+    {0x00, 0x42, 0x7d, 0x42, 0x00}, // 206 Capital I with circumflex (Î)
+    {0x00, 0x41, 0x7d, 0x41, 0x00}, // 207 Capital I with umlaut (Ï)
     {0x7f, 0x41, 0x41, 0x22, 0x1c}, // 208 Capital Eth (Ð)
-    {0x7f, 0x05, 0x06, 0x0c, 0x7f}, // 209 Capital N with tilde (Ñ)
-    {0x3e, 0x42, 0x41, 0x42, 0x3e}, // 210 Capital O with grave (Ò)
-    {0x3e, 0x40, 0x41, 0x42, 0x3c}, // 211 Capital O with acute (Ó)
-    {0x3e, 0x44, 0x45, 0x44, 0x3e}, // 212 Capital O with circumflex (Ô)
-    {0x3e, 0x45, 0x46, 0x45, 0x3e}, // 213 Capital O with tilde (Õ)
-    {0x3e, 0x41, 0x43, 0x41, 0x3e}, // 214 Capital O with umlaut (Ö)
-    {0x22, 0x14, 0x08, 0x14, 0x22}, // 215 Multiplication sign (×)
-    {0x2e, 0x41, 0x41, 0x41, 0x3a}, // 216 Capital O with stroke (Ø)
-    {0x3f, 0x42, 0x41, 0x40, 0x3f}, // 217 Capital U with grave (Ù)
-    {0x3f, 0x40, 0x41, 0x42, 0x3e}, // 218 Capital U with acute (Ú)
-    {0x3f, 0x44, 0x45, 0x44, 0x3f}, // 219 Capital U with circumflex (Û)
-    {0x3f, 0x41, 0x43, 0x41, 0x3f}, // 220 Capital U with umlaut (Ü)
-    {0x03, 0x08, 0x70, 0x0c, 0x03}, // 221 Capital Y with acute (Ý)
-    {0x7f, 0x49, 0x09, 0x09, 0x06}, // 222 Capital Thorn (Þ)
-    {0x7f, 0x49, 0x49, 0x36, 0x00}, // 223 Small sharp s / Eszett (ß)
-    {0x20, 0x56, 0x55, 0x56, 0x78}, // 224 Small a with grave (à)
-    {0x20, 0x55, 0x56, 0x58, 0x70}, // 225 Small a with acute (á)
-    {0x20, 0x59, 0x5a, 0x58, 0x78}, // 226 Small a with circumflex (â)
-    {0x20, 0x5a, 0x5d, 0x5a, 0x78}, // 227 Small a with tilde (ã)
-    {0x20, 0x55, 0x57, 0x55, 0x78}, // 228 Small a with umlaut (ä)
-    {0x20, 0x55, 0x59, 0x55, 0x78}, // 229 Small a with ring above (å)
+    {0x7f, 0x09, 0x05, 0x03, 0x7f}, // 209 Capital N with tilde (Ñ)
+    {0x3e, 0x43, 0x41, 0x41, 0x3e}, // 210 Capital O with grave (Ò)
+    {0x3e, 0x41, 0x41, 0x43, 0x3e}, // 211 Capital O with acute (Ó)
+    {0x3e, 0x42, 0x45, 0x42, 0x3e}, // 212 Capital O with circumflex (Ô)
+    {0x3e, 0x42, 0x45, 0x42, 0x3e}, // 213 Capital O with tilde (Õ)
+    {0x3e, 0x41, 0x41, 0x41, 0x3e}, // 214 Capital O with umlaut (Ö)
+    {0x08, 0x14, 0x22, 0x14, 0x08}, // 215 Multiplication sign (×)
+    {0x3e, 0x61, 0x51, 0x4b, 0x3e}, // 216 Capital O with stroke (Ø)
+    {0x3f, 0x42, 0x40, 0x40, 0x3f}, // 217 Capital U with grave (Ù)
+    {0x3f, 0x40, 0x40, 0x42, 0x3f}, // 218 Capital U with acute (Ú)
+    {0x3f, 0x42, 0x44, 0x42, 0x3f}, // 219 Capital U with circumflex (Û)
+    {0x3f, 0x41, 0x40, 0x41, 0x3f}, // 220 Capital U with umlaut (Ü)
+    {0x03, 0x04, 0x78, 0x04, 0x03}, // 221 Capital Y with acute (Ý)
+    {0x7f, 0x49, 0x49, 0x36, 0x00}, // 222 Capital Thorn (Þ)
+    {0x3e, 0x49, 0x49, 0x49, 0x32}, // 223 Small sharp s / Eszett (ß)
+    {0x20, 0x55, 0x55, 0x54, 0x78}, // 224 Small a with grave (à)
+    {0x20, 0x54, 0x55, 0x55, 0x78}, // 225 Small a with acute (á)
+    {0x20, 0x56, 0x55, 0x56, 0x78}, // 226 Small a with circumflex (â)
+    {0x20, 0x56, 0x55, 0x56, 0x78}, // 227 Small a with tilde (ã)
+    {0x20, 0x55, 0x54, 0x55, 0x78}, // 228 Small a with umlaut (ä)
+    {0x20, 0x55, 0x54, 0x55, 0x78}, // 229 Small a with ring above (å)
     {0x24, 0x54, 0x78, 0x54, 0x5c}, // 230 Small ae ligature (æ)
-    {0x38, 0x44, 0x4c, 0x54, 0x24}, // 231 Small c with cedilla (ç)
-    {0x38, 0x56, 0x55, 0x56, 0x18}, // 232 Small e with grave (è)
-    {0x38, 0x55, 0x56, 0x58, 0x10}, // 233 Small e with acute (é)
-    {0x38, 0x59, 0x5a, 0x58, 0x18}, // 234 Small e with circumflex (ê)
-    {0x38, 0x55, 0x57, 0x55, 0x18}, // 235 Small e with umlaut (ë)
-    {0x00, 0x45, 0x7e, 0x40, 0x00}, // 236 Small i with grave (ì)
-    {0x00, 0x40, 0x7e, 0x45, 0x00}, // 237 Small i with acute (í)
-    {0x00, 0x49, 0x7e, 0x49, 0x00}, // 238 Small i with circumflex (î)
-    {0x00, 0x46, 0x7e, 0x46, 0x00}, // 239 Small i with umlaut (ï)
+    {0x38, 0x44, 0x44, 0x28, 0x10}, // 231 Small c with cedilla (ç)
+    {0x38, 0x55, 0x55, 0x54, 0x18}, // 232 Small e with grave (è)
+    {0x38, 0x54, 0x55, 0x55, 0x18}, // 233 Small e with acute (é)
+    {0x38, 0x56, 0x55, 0x56, 0x18}, // 234 Small e with circumflex (ê)
+    {0x38, 0x55, 0x54, 0x55, 0x18}, // 235 Small e with umlaut (ë)
+    {0x00, 0x45, 0x7c, 0x40, 0x00}, // 236 Small i with grave (ì)
+    {0x00, 0x40, 0x7c, 0x45, 0x00}, // 237 Small i with acute (í)
+    {0x00, 0x46, 0x7c, 0x46, 0x00}, // 238 Small i with circumflex (î)
+    {0x00, 0x45, 0x7c, 0x45, 0x00}, // 239 Small i with umlaut (ï)
     {0x38, 0x44, 0x44, 0x48, 0x7f}, // 240 Small eth (ð)
-    {0x7c, 0x09, 0x0a, 0x04, 0x78}, // 241 Small n with tilde (ñ)
-    {0x38, 0x46, 0x45, 0x46, 0x38}, // 242 Small o with grave (ò)
-    {0x38, 0x45, 0x46, 0x48, 0x30}, // 243 Small o with acute (ó)
-    {0x38, 0x4a, 0x4b, 0x4a, 0x38}, // 244 Small o with circumflex (ô)
-    {0x38, 0x4b, 0x4c, 0x4b, 0x38}, // 245 Small o with tilde (õ)
-    {0x38, 0x45, 0x47, 0x45, 0x38}, // 246 Small o with umlaut (ö)
+    {0x7c, 0x05, 0x05, 0x04, 0x78}, // 241 Small n with tilde (ñ)
+    {0x38, 0x45, 0x45, 0x44, 0x38}, // 242 Small o with grave (ò)
+    {0x38, 0x44, 0x45, 0x45, 0x38}, // 243 Small o with acute (ó)
+    {0x38, 0x46, 0x45, 0x46, 0x38}, // 244 Small o with circumflex (ô)
+    {0x38, 0x46, 0x45, 0x46, 0x38}, // 245 Small o with tilde (õ)
+    {0x38, 0x45, 0x44, 0x45, 0x38}, // 246 Small o with umlaut (ö)
     {0x08, 0x08, 0x2a, 0x08, 0x08}, // 247 Division sign (÷)
-    {0x38, 0x44, 0x44, 0x44, 0x38}, // 248 Small o with stroke (ø)
-    {0x3c, 0x42, 0x41, 0x20, 0x7c}, // 249 Small u with grave (ù)
-    {0x3c, 0x40, 0x41, 0x22, 0x78}, // 250 Small u with acute (ú)
-    {0x3c, 0x44, 0x45, 0x24, 0x7c}, // 251 Small u with circumflex (û)
-    {0x3c, 0x41, 0x43, 0x21, 0x7c}, // 252 Small u with umlaut (ü)
-    {0x0c, 0x50, 0x52, 0x50, 0x3c}, // 253 Small y with acute (ý)
-    {0x7f, 0x14, 0x14, 0x08, 0x04}, // 254 Small thorn (þ)
-    {0x0c, 0x51, 0x53, 0x51, 0x3c}  // 255 Small y with umlaut (ÿ)
+    {0x38, 0x64, 0x54, 0x4c, 0x38}, // 248 Small o with stroke (ø)
+    {0x3c, 0x41, 0x40, 0x20, 0x7c}, // 249 Small u with grave (ù)
+    {0x3c, 0x40, 0x40, 0x21, 0x7c}, // 250 Small u with acute (ú)
+    {0x3c, 0x42, 0x40, 0x22, 0x7c}, // 251 Small u with circumflex (û)
+    {0x3c, 0x41, 0x40, 0x21, 0x7c}, // 252 Small u with umlaut (ü)
+    {0x4c, 0x30, 0x30, 0x30, 0x7c}, // 253 Small y with acute (ý)
+    {0x7f, 0x24, 0x24, 0x18, 0x00}, // 254 Small thorn (þ)
+    {0x4c, 0x31, 0x30, 0x31, 0x7c}  // 255 Small y with umlaut (ÿ)
 };
 
 /**
  * @brief Construct a new Display Controller object and register the device on the I2C bus.
  * @param bus_pointer Pointer to the active, thread-safe hardware I2C master bus instance.
  */
-DisplayController::DisplayController(i2c* bus_pointer) : m_bus(bus_pointer) {
+DisplayController::DisplayController(i2c *bus_pointer) : m_bus(bus_pointer) {
     if (m_bus == nullptr) {
         ESP_LOGE(TAG, "Failed creation: Input I2C bus pointer context is null!");
         return;
@@ -309,6 +307,13 @@ esp_err_t DisplayController::initializeHardware() {
 
     esp_err_t err = ESP_OK;
 
+        // Determine target-specific RAM widths
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+    const uint8_t displayWidth = 132; // SH1106 total internal RAM columns
+#else
+    const uint8_t displayWidth = 128; // SSD1306 total internal RAM columns
+#endif
+
     // Ultra-reliable fundamental minimal initialization sequence configuration steps
     err |= sendCommand(0xAE); // Turn display off
     err |= sendCommand(0xD5); // Set clock divide ratio
@@ -338,12 +343,14 @@ esp_err_t DisplayController::initializeHardware() {
         err |= sendCommand(0x10);                              // Reset higher column pointer
 
         // Allocate high-speed contiguous flash transmission block buffer (1 control byte + 128 data bytes)
-        uint8_t clearBuffer[129] = {0};
+        // FIXED: Dynamically allocate clear-buffer based on target RAM size (1 control byte + width)
+        // Max size is 133 bytes for SH1106, securely initialised to zeros
+        uint8_t clearBuffer[133] = {0};
         clearBuffer[0] = 0x40; // Enforce explicit Data Mode streaming identifier token
 
         // The remaining 128 bytes are already natively initialized to 0x00 via the aggregate initializer {0}
         if (m_devHandle != nullptr) {
-            err |= i2c_master_transmit(m_devHandle, clearBuffer, sizeof(clearBuffer), 50);
+            err |= i2c_master_transmit(m_devHandle, clearBuffer, static_cast<size_t>(displayWidth + 1), 50);
         }
     }
 
@@ -381,7 +388,7 @@ void DisplayController::startTask(uint32_t priority) {
  * @param text Pointer to a standard null-terminated sequence of tracking information.
  * @param startX Starting column coordinate index on the horizontal axis (0 to 127).
  */
-void DisplayController::printMessage(uint8_t line, const char* text, uint8_t startX) {
+void DisplayController::printMessage(uint8_t line, const char *text, uint8_t startX) {
     if (m_msgQueue == nullptr || text == nullptr) return;
 
     DisplayMessage msg = {};
@@ -400,8 +407,8 @@ void DisplayController::printMessage(uint8_t line, const char* text, uint8_t sta
  * @brief Static trampoline layer connecting the native C-based FreeRTOS scheduler directly back to our C++ runtime context.
  * @param pvParameters Raw pointer mapping the reference context of the current instance tracking space.
  */
-void DisplayController::taskTrampoline(void* pvParameters) {
-    auto* instance = static_cast<DisplayController*>(pvParameters);
+void DisplayController::taskTrampoline(void *pvParameters) {
+    auto *instance = static_cast<DisplayController*>(pvParameters);
     if (instance != nullptr) {
         instance->run();
     }
@@ -434,12 +441,22 @@ void DisplayController::run() {
             // POSITIONING THE HARDWARE POINTER
             sendCommand(static_cast<uint8_t>(0xB0 + cleanLine)); // Set page address boundary
 
+            // DYNAMIC HARDWARE OFFSET INJECTION
+            // Classic TTGO starts at column 0, while T-Beam Supreme (SH1106/7 layout) requires a +2 pixel shift
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+            uint8_t correctedX = static_cast<uint8_t>(incoming.startX + 2);
+            uint8_t displayWidth = 132; // SH1106 RAM width
+#else
+            uint8_t correctedX = incoming.startX;
+            uint8_t displayWidth = 128; // SSD1306 RAM width
+#endif
+
             // Set the horizontal column start pointer (startX) elegantly without magic 0x00 OR-mask
-            sendCommand(static_cast<uint8_t>(incoming.startX & 0x0F));
-            sendCommand(static_cast<uint8_t>(0x10 | (incoming.startX >> 4)));
+            sendCommand(static_cast<uint8_t>(correctedX & 0x0F));
+            sendCommand(static_cast<uint8_t>(0x10 | (correctedX >> 4)));
 
             // Track absolute pixel position starting from the custom X coordinate
-            uint8_t totalBytesWritten = incoming.startX;
+            uint8_t totalBytesWritten = correctedX;
             const size_t textLength = strlen(incoming.content);
 
             for (size_t i = 0; i < textLength; i++) {
@@ -467,7 +484,7 @@ void DisplayController::run() {
                     validCharacter = true;
                 }
 
-                if (validCharacter && totalBytesWritten < 122) {
+                if (validCharacter && totalBytesWritten < static_cast<uint8_t>(displayWidth - 6)) {
                     uint8_t txBuffer[7];
                     // copy all 5 font columns in a single, hardware-accelerated burst
                     txBuffer[0] = 0x40; // Data identifier
@@ -525,6 +542,7 @@ void run_display_font_test(DisplayController* display) {
     if (display == nullptr) return;
 
     // Test 1: Standard printable ASCII characters (Lines 0 and 1)
+    display->printMessage(0, " ",0); // clear line
     display->printMessage(0, "=== FONT TEST ===", 12);
     display->printMessage(1, "ASCII: abcXYZ 123!?", 0);
 
@@ -541,6 +559,23 @@ void run_display_font_test(DisplayController* display) {
     display->printMessage(7, "Line test: ___ === _", 0);
 
     // Let the user look at the test pattern for 60 seconds
+    vTaskDelay(pdMS_TO_TICKS(60000));
+    // Display löschen oder Zeilen vorbereiten, falls nötig
+    for (uint8_t line = 0; line < 8; line++) {
+        display->printMessage(line, " "); // Zeile leeren
+    }
+    int c = 32;
+    for ( uint8_t line = 0; line < 8 ; line++) {
+        for ( uint8_t i = 0; i < 22 ; i++ ) {
+            if (c > 255) break;
+
+            char buf[2] = { (char)c, '\0' };
+
+            display->appendMessage(line, buf , i);
+
+            c++; //next char
+        }
+    }
     vTaskDelay(pdMS_TO_TICKS(60000));
     // Print a quick shutdown notice to the CLI console before restarting
     printf("\r\n[SYSTEM] Visual test completed. Triggering hardware reset now...\n");

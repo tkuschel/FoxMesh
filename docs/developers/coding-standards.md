@@ -7,7 +7,7 @@ This document defines the strict architectural and structural coding standards f
 ## 1. General Principles
 
 * **Language:** All source code, variable names, class names, file names, and comments **must be written entirely in English**.
-* **Modern C++ Execution:** We target pure C++ implementation architectures utilizing **ESP-IDF v6.0+ (PlatformIO platform v7.x)**. 
+* **Modern C++ Execution:** We target pure C++ implementation architectures utilizing **ESP-IDF v6.0+ (PlatformIO platform v7.x)**.
 * **Framework Restrictions:** The Arduino framework layer is **strictly prohibited**. Only native ESP-IDF APIs are permitted.
 * **No CPU Polling:** Code must be completely event-driven or asynchronous. Traditional busy-waiting or repetitive polling loops inside worker tasks are banned. Use FreeRTOS blocking mechanisms (Queues, Notifications, Semaphores) instead.
 
@@ -26,7 +26,7 @@ Every source file (`.hpp`, `.cpp`) must feature a compact, Doxygen-compliant doc
  * @file filename.hpp
  * @brief Concise one-line description of the file's primary hardware/software layer
  * @author OM Tom (OE3TKT)
- * 
+ *
  * @license SPDX-License-Identifier: MIT
  * @copyright Copyright (c) 2026 OM Tom (OE3TKT)
  * For the full license terms, see the LICENSE file in the project root.
@@ -106,3 +106,31 @@ All public APIs, public structures, and method signatures within header files mu
  */
 void updateProfile(const BlinkProfile& profile);
 ```
+
+## 8. Git Branching and Commit Standards
+
+To ensure traceability and maintain a clean repository history, FoxMesh strictly follows a standardized branching and commit convention based on *Conventional Commits*.
+
+### 8.1 Branch Naming Convention
+Developers must prefix every newly created Git branch with a specific scope identifier followed by a slash (`/`), the Gitea issue number, and a short description.
+
+* **Format:** `<type>/<issue-number>-<short-description>`
+* **Example:** `docs/123-readme-update` or `feat/45-lora-mesh-ack`
+
+### 8.2 Scope Identifiers
+The following prefixes are permitted for branch creation and commit messages:
+
+* `feat/` (or `feature/`): Introduction of new hardware or software functionalities.
+* `fix/` (or `bugfix/`): Resolution of bugs, runtime stability issues, or crashes.
+* `docs/`: Exclusively reserved for pure documentation updates (Readmes, Doxygen, Wiki).
+* `refactor/`: Code reorganization or optimization without changing external behavior.
+* `chore/`: Updates to the build system, `platformio.ini`, CI/CD pipelines, or external dependencies.
+
+### 8.3 Commit and Issue Automation
+Every commit message should start with the lowercase prefix (e.g., `docs: description`) and must include the targeted Gitea issue number in parentheses at the end to allow automated tracking and timeline linkage:
+
+```bash
+git commit -m "docs: added docker installation guide (#123)"
+```
+
+When submitting a Pull Request (PR) to the `main` branch, developers must use standard closure keywords (`closes #123`, `resolves #123`) within the PR description to ensure Gitea automatically resolves the ticket upon integration.
