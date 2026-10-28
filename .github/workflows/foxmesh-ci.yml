@@ -47,10 +47,10 @@ jobs:
         echo "GIT_BRANCH=$CLEAN_BRANCH" >> $GITHUB_ENV
 
     # 3. Set up Python environment
-    - name: Set up Python 3.x
+    - name: Set up Python 3.14
       uses: actions/setup-python@v7
       with:
-        python-version: '3.x'
+        python-version: '3.14'
 
     # 4. Cache global PlatformIO directories, uses a dynamic key based on platformio.ini
     - name: Cache PlatformIO
