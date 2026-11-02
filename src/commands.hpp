@@ -52,6 +52,12 @@ public:
     const std::string &getSyntax() const;
 
     /**
+     * @brief Forces the command name to be fully typed out without abbreviations.
+     * @return true if strict matching is required, false otherwise.
+     */
+    virtual bool isStrictMatch() const { return false; }
+
+    /**
      * @brief Core execution trigger invoked when a command match occurs.
      * @param arguments Vector containing tokenized string parameters.
      * @param channel The source channel where the command originated.

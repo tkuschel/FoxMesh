@@ -14,7 +14,9 @@
 #include "display.hpp"
 #include "i2c.hpp"
 #include "led.hpp"
+#include "gnss_sync.hpp"
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "freertos/timers.h"
 #include "esp_system.h"
 #include "esp_log.h"
@@ -32,6 +34,7 @@ extern LoraController *lora_system;
 extern DisplayController *oled_display;
 extern i2c *i2c_bus;
 extern LedController *led_system;
+extern GnssTimeSync *gnss_system;
 
 // The global command subsystem single instance tracking pointer
 static CommandManager *global_command_manager = nullptr;
@@ -179,10 +182,14 @@ void CommandManager::setCallsign(const std::string &newCallsign, const std::stri
 void CommandManager::setOperationMode(OperationMode newMode) {
     m_operationMode = newMode;
     if (m_operationMode == OperationMode::ONLINE_MODE) {
-        respond(ResponseChannel::UART, "\r\n[MODE] Switched to ONLINE chat interface. Default prompt target: @%s\r\n", m_active_target.c_str());
+        //respond(ResponseChannel::UART, "\r\n[MODE] Switched to ONLINE chat interface. Default prompt target: @%s\r\n", m_active_target.c_str());
+        respond(ResponseChannel::UART, "\r\n[MODE] Switched to ONLINE chat interface.\r\n");
+        respond(ResponseChannel::UART, "Identity: %s-%s | Type '+++' to exit back to COMMAND mode.\r\n", m_callsign.c_str(), m_ssid.c_str());
+        respond(ResponseChannel::UART, "Default prompt target: @%s\r\n\r\n", m_active_target.c_str());
         respond(ResponseChannel::UART, "@%s> ", m_active_target.c_str());
     } else {
-        respond(ResponseChannel::UART, "\r\n[MODE] Switched back to interactive COMMAND execution layer.\r\n");
+        respond(ResponseChannel::UART, "\r\n[MODE] Switched to interactive COMMAND execution layer.\r\n");
+        respond(ResponseChannel::UART, "Type 'help' or '?' for available commands.\r\n\r\n");
         respond(ResponseChannel::UART, "%s # ", Config::PROJECT_TITLE);
     }
 }
@@ -192,6 +199,8 @@ void CommandManager::processLine(const std::string& rawLine, ResponseChannel cha
     if (sanitized_line.empty()) {
         if (m_operationMode == OperationMode::ONLINE_MODE) {
             respond(channel, "@%s> ", m_active_target.c_str());
+        } else {
+            respond(channel, "%s # ", Config::PROJECT_TITLE);
         }
         return;
     }
@@ -199,7 +208,6 @@ void CommandManager::processLine(const std::string& rawLine, ResponseChannel cha
     // Escape sequence handler forcing a terminal exit out of chat structures into standard CLI configuration profiles
     if (sanitized_line == "+++") {
         setOperationMode(OperationMode::COMMAND_MODE);
-        respond(channel, "%s # ", Config::PROJECT_TITLE);
         return;
     }
 
@@ -228,7 +236,14 @@ void CommandManager::processLine(const std::string& rawLine, ResponseChannel cha
     }
 
     for (const auto &cmd : m_commands) {
-        if (isPrefixMatch(firstInput, cmd->getName())) {
+        bool isMatch;
+        if (cmd->isStrictMatch()) {
+            isMatch = (firstInput == cmd->getName()); // Requires an exact full-word match
+        } else {
+            isMatch = isPrefixMatch(firstInput, cmd->getName()); // Standard prefix/abbreviation matching
+        }
+
+        if (isMatch) {
             std::vector<std::string> args(tokens.begin() + 1, tokens.end());
 
             if (!args.empty() && args[0] == "?") {
@@ -257,18 +272,29 @@ void CommandManager::handleOnlineChatMode(const std::string &rawLine, ResponseCh
     // Evaluate target extraction routines if current terminal line explicitly starts with the prefix character '@'
     if (rawLine[0] == '@') {
         size_t separator_index = rawLine.find_first_of(" :");
-        if (separator_index != std::string::npos) {
-            // Slicing targeted operational scope node out of the active terminal frame
-            m_active_target = rawLine.substr(1, separator_index - 1);
 
+        // 1. Extract the target string (either up to the space/colon, or the whole rest of the line)
+        if (separator_index != std::string::npos) {
+            m_active_target = rawLine.substr(1, separator_index - 1);
+        } else {
+            m_active_target = rawLine.substr(1);
+        }
+
+        // 2. Format the target once (Uppercase for callsigns, lowercase "all" for broadcasts)
+        std::transform(m_active_target.begin(), m_active_target.end(), m_active_target.begin(), ::toupper);
+        if (m_active_target == "ALL") {
+            m_active_target = "all";
+        }
+
+        // 3. Process the remaining message payload if a separator was found
+        if (separator_index != std::string::npos) {
             size_t message_start_index = separator_index;
             if (rawLine[message_start_index] == ':') {
                 message_start_index++;
             }
             broadcast_message = trim_string(rawLine.substr(message_start_index));
         } else {
-            // Prompt assignment shorthand (e.g. '@oe1kbc' isolates the specific call without sending an empty payload)
-            m_active_target = rawLine.substr(1);
+            // Shorthand target lock profile (e.g. '@OE3TKT' prompt assignment without sending a payload)
             respond(channel, "\r\n[Target Locked] Scope context updated to: @%s\r\n", m_active_target.c_str());
             respond(channel, "@%s> ", m_active_target.c_str());
             return;
@@ -306,9 +332,42 @@ void CommandManager::printGlobalHelp(ResponseChannel channel) const {
 
 // --- Concrete System Commands Definitions ---
 
+class RebootCommand : public CliCommand {
+public:
+    RebootCommand() : CliCommand("reboot", "Perform a hardware-safe software restart of the ESP32 chip.", "reboot") {}
+
+    // Enforces strict matching to protect system from accidental reboots via partial/abbreviated inputs
+    bool isStrictMatch() const override { return true; }
+
+    void execute(const std::vector<std::string>&, ResponseChannel channel) override {
+        respond(channel, "[SYSTEM] De-initializing peripherals and pulling reset lines...\r\n");
+
+        // 1. Reset LoRa Transceiver via verified pin definition from config.hpp
+        gpio_set_direction(Config::LORA_RST_PIN, GPIO_MODE_OUTPUT);
+        gpio_set_level(Config::LORA_RST_PIN, 0);
+
+        // 2. Clear I2C SDA/SCL lines by forcing them High/Floating to un-stick the AXP2101 PMIC
+        gpio_set_direction(Config::OLED_SDA_PIN, GPIO_MODE_INPUT_OUTPUT_OD);
+        gpio_set_direction(Config::OLED_SCL_PIN, GPIO_MODE_INPUT_OUTPUT_OD);
+        gpio_set_level(Config::OLED_SDA_PIN, 1);
+        gpio_set_level(Config::OLED_SCL_PIN, 1);
+
+        // Give the peripheral hardware chips a moment to fully power-down and settle
+        vTaskDelay(pdMS_TO_TICKS(200));
+
+        respond(channel, "[SYSTEM] Initiating full synchronous hardware reboot...\r\n");
+        vTaskDelay(pdMS_TO_TICKS(100)); // Ensure UART buffers flush completely before core halt
+
+        esp_restart();
+    }
+};
+
 class SetCallsignCommand : public CliCommand {
 public:
     SetCallsignCommand() : CliCommand("setcall", "Configure persistent radio network callsign identity identifier.", "setcall <callsign>[-ssid]") {}
+
+    // Enforces strict matching to protect the identity config from accidental runtime changes
+    bool isStrictMatch() const override { return true; }
 
     void execute(const std::vector<std::string>& arguments, ResponseChannel channel) override {
         if (arguments.empty()) {
@@ -561,6 +620,54 @@ public:
     }
 };
 
+class GpsCommand : public CliCommand {
+public:
+    // The command now accepts both "gps" and "gnss" context names through instantiation
+    GpsCommand(std::string name) : CliCommand(std::move(name), "Display high-precision geographic coordinates and satellite status.", "gps [f|full]") {}
+
+    // Safe command, allowed to be abbreviated like status or version (e.g., 'gp' or 'gn')
+    bool isStrictMatch() const override { return false; }
+
+    void execute(const std::vector<std::string>& arguments, ResponseChannel channel) override {
+        if (gnss_system == nullptr) {
+            respond(channel, "Error: GNSS subsystem context handle is uninitialized.\r\n");
+            return;
+        }
+
+        gnss_data_t gps_data;
+        if (gnss_system->getLatestData(&gps_data)) {
+            respond(channel, "--- GNSS Satellite Status ---\r\n");
+
+            // Format fix quality with standard amateur radio / NMEA descriptions
+            const char* fix_string = "NO FIX (Searching...)";
+            if (gps_data.fix_quality == 1) fix_string = "GPS Standard Fix (SPS)";
+            if (gps_data.fix_quality == 2) fix_string = "Differential GPS Fix (DGPS)";
+            if (gps_data.fix_quality == 4) fix_string = "Real-Time Kinematic (RTK Fixed)";
+            if (gps_data.fix_quality == 5) fix_string = "Real-Time Kinematic (RTK Float)";
+
+            respond(channel, "Fix Quality : %s\r\n", fix_string);
+            respond(channel, "UTC Time    : %02d:%02d:%02d\r\n", gps_data.hour, gps_data.minute, gps_data.second);
+
+            if (gps_data.fix_quality > 0) {
+                // High-precision 6-digit float format for map software integration (e.g. APRS/MeshCom)
+                respond(channel, "Latitude    : %.6f %c\r\n", std::abs(gps_data.latitude),  (gps_data.latitude >= 0) ? 'N' : 'S');
+                respond(channel, "Longitude   : %.6f %c\r\n", std::abs(gps_data.longitude), (gps_data.longitude >= 0) ? 'E' : 'W');
+                respond(channel, "Altitude    : %.1f m (MSL)\r\n", gps_data.altitude);
+
+                // Check for optional "full" argument to display tracking debug metrics
+                if (!arguments.empty() && (arguments[0] == "f" || arguments[0] == "full")) {
+                    respond(channel, "Data Layout : Decimal Degrees (DD)\r\n");
+                    respond(channel, "Hardware ID : u-blox M10S (UART Interface)\r\n");
+                }
+            } else {
+                respond(channel, "Position    : Coordinates locked. Waiting for valid satellite geometry.\r\n");
+            }
+        } else {
+            respond(channel, "Error: Failed to fetch thread-safe data snapshot from hardware mutex.\r\n");
+        }
+    }
+};
+
 // --- C-Bridge Interfacing Methods implementation ---
 void initialize_commands_system() {
     if (global_command_manager != nullptr) return;
@@ -568,8 +675,11 @@ void initialize_commands_system() {
     global_command_manager->initializeAndLoadConfig();
 
     // Priority Chain Setup: First registered command takes execution shorthand precedence!
+    global_command_manager->registerCommand(std::make_unique<RebootCommand>());
     global_command_manager->registerCommand(std::make_unique<SetCallsignCommand>());
     global_command_manager->registerCommand(std::make_unique<OnlineModeCommand>());
+    global_command_manager->registerCommand(std::make_unique<GpsCommand>("gps"));
+    global_command_manager->registerCommand(std::make_unique<GpsCommand>("gnss")); // <-- Alias mapping
     global_command_manager->registerCommand(std::make_unique<VersionCommand>());
     global_command_manager->registerCommand(std::make_unique<StatusCommand>());
     global_command_manager->registerCommand(std::make_unique<MuteCommand>());

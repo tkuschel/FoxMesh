@@ -10,6 +10,7 @@
 
 #include "cli.hpp"
 #include "commands.hpp"
+#include "gnss_sync.hpp"
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
@@ -26,6 +27,8 @@
 // Unified low-level hardware drivers for both targets
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
 #include "driver/usb_serial_jtag.h"
+// #include "esp_vfs_usb_serial_jtag.h"
+#include "driver/usb_serial_jtag_vfs.h"
 #endif
 
 static const char *TAG = "CLI";
@@ -38,6 +41,7 @@ static i2c *cli_i2c_bus = nullptr;
 LedController *led_system = nullptr;
 DisplayController *oled_display = nullptr;
 LoraController *lora_system = nullptr;
+GnssTimeSync *gnss_system = nullptr; // new global pointer to GNSS
 
 #define CLI_UART_PORT UART_NUM_0
 #define BUF_SIZE 1024
@@ -81,7 +85,8 @@ static void log_restore_timer_callback(TimerHandle_t xTimer) {
     printf("\r\n[System] Debug logs unmuted after %lu seconds of inactivity. \r\n", (unsigned long)current_mute_time_sec);
 
     if (manager->getOperationMode() == OperationMode::ONLINE_MODE) {
-        printf("@%s> ", manager->getActiveTarget().c_str());
+        const char *target = manager->getActiveTarget().c_str();
+        printf("@%s> ", target ? target : "all");
     } else {
         printf("%s # ", Config::PROJECT_TITLE);
     }
@@ -109,6 +114,14 @@ static void cli_worker_task(void *pvParameters) {
     if (usb_err != ESP_OK && usb_err != ESP_ERR_INVALID_STATE) {
         ESP_LOGE(TAG, "Failed to mount USB Serial core hardware driver.");
     }
+
+    // Bind USB-SERIAL-JTAG directly into virtual file system console output endpoints
+    //esp_vfs_usb_serial_jtag_use_driver();
+    // Bind USB-SERIAL-JTAG directly into virtual file system console output endpoints
+    usb_serial_jtag_vfs_use_driver();
+
+    // Disable stdout block line buffering natively across the runtime layers
+    setvbuf(stdout, NULL, _IONBF, 0);
 #else
     /* --- Classic TTGO UART0 Hardware Setup --- */
     uart_config_t uart_config = {};
@@ -121,15 +134,6 @@ static void cli_worker_task(void *pvParameters) {
 
     ESP_ERROR_CHECK(uart_param_config(CLI_UART_PORT, &uart_config));
     ESP_ERROR_CHECK(uart_driver_install(CLI_UART_PORT, BUF_SIZE * 2, 0, 0, nullptr, 0));
-
-    // FIX 1: Explicitly tell VFS to use the interrupt-driven driver hooks for immediate piping
-
-    esp_vfs_dev_uart_use_driver(CLI_UART_PORT);
-
-
-    // FIX 2: Clear stdout stream restrictions to completely bypass line caching
-    static char cli_stdout_buffer[256];
-    setvbuf(stdout, cli_stdout_buffer, _IONBF, sizeof(cli_stdout_buffer));
 #endif
     // Mount object-oriented core command system manager structures
     initialize_commands_system();
@@ -137,18 +141,18 @@ static void cli_worker_task(void *pvParameters) {
 
     char line_buffer[BUF_SIZE];
     int buffer_index = 0;
+    bool last_was_newline = false;
+    bool cli_activated = false; // At the very beginning: CLI sleeps
 
-    printf("\r\n=== Interactive %s CLI Console Started ===\r\n", Config::PROJECT_TITLE);
-    printf("Type 'help' to get a list of active instructions.\r\n\r\n");
-
-    if (manager->getOperationMode() == OperationMode::ONLINE_MODE) {
-        printf("@%s> ", manager->getActiveTarget().c_str());
-    } else {
-        printf("%s # ", Config::PROJECT_TITLE);
-    }
-    fflush(stdout);
 
     while (1) {
+        // AUTOMATIC DISCONNECT DETECTION (ESP32-S3 Native USB only!)
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+        if (!usb_serial_jtag_is_connected()) {
+            cli_activated = false;
+        }
+#endif
+
         uint8_t data = 0;
         int len = 0;
 
@@ -170,21 +174,52 @@ static void cli_worker_task(void *pvParameters) {
 
             // Capture Carriage Return or Line Feed sequence boundaries
             if (data == '\r' || data == '\n') {
-                line_buffer[buffer_index] = '\0';
-                manager->processLine(line_buffer, ResponseChannel::UART);
-                buffer_index = 0;
+                if (!cli_activated) {
+                    cli_activated = true;
+                    printf("\r\n=== Interactive %s CLI Console Started ===\r\n", Config::PROJECT_TITLE);
+
+                    // Check the current operational mode to print a helpful hint
+                    if (manager->getOperationMode() == OperationMode::ONLINE_MODE) {
+                        // Print comprehensive identity and network routing context
+                        printf("Mode     : TRANSPARENT ONLINE CHAT\r\n");
+                        printf("Identity : %s-%s\r\n", manager->getCallsign().c_str(), manager->getSsid().c_str());
+                        printf("Target   : @%s\r\n", manager->getActiveTarget().c_str());
+                        printf("Hint     : Type your message to broadcast, or type '+++' for COMMAND mode.\r\n\r\n");
+                        printf("@%s> ", manager->getActiveTarget().c_str());
+                    } else {
+                        printf("Mode     : COMMAND EXECUTION LAYER\r\n");
+                        printf("Hint     : Type 'help' or '?' to get a list of active instructions.\r\n\r\n");
+                        printf("%s # ", Config::PROJECT_TITLE);                    }
+                    fflush(stdout);
+                    last_was_newline = true;
+                    buffer_index = 0;
+                } else if (buffer_index > 0) {
+                    line_buffer[buffer_index] = '\0';
+                    manager->processLine(line_buffer, ResponseChannel::UART);
+                    buffer_index = 0;
+                    last_was_newline = true;
+                } else if (!last_was_newline) {
+                    // this handles a single, deliberate press of the Enter key on an empty line
+                    line_buffer[0] = '\0';
+                    manager->processLine(line_buffer, ResponseChannel::UART);
+                    last_was_newline = true;
+                }
             }
             // Evaluate Backspace command frames (ASCII 8 or Delete 127 symbols)
             else if ((data == 8 || data == 127) && buffer_index > 0) {
                 buffer_index--;
                 printf("\b \b");
                 fflush(stdout);
+                // Reset newline tracker on active input
+                last_was_newline = false;
             }
             // Sanitize and append terminal symbols (supports multi-byte chars like German Umlaute)
             else if (((data >= 32 && data <= 126) || data >= 128) && buffer_index < (BUF_SIZE - 1)) {
                 line_buffer[buffer_index++] = static_cast<char>(data);
                 printf("%c", data);
                 fflush(stdout);
+                // Reset newline tracker on active input
+                last_was_newline = false;
             }
         }
     }
@@ -208,7 +243,7 @@ void start_cli_task(void) {
     xTaskCreatePinnedToCore(
         cli_worker_task,
         "CLI_InterfaceTask",
-        4096,
+        configMINIMAL_STACK_SIZE + 4096,
         nullptr,
         5,
         nullptr,

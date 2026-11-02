@@ -20,6 +20,7 @@
 #include "driver/spi_master.h"
 #include "driver/i2c_master.h" // Modern ESP-IDF I2C drivers
 #include "esp_log.h"
+#include "gnss_sync.hpp"
 #include "config.hpp"
 #include "led.hpp"
 #include "cli.hpp"
@@ -194,6 +195,8 @@ extern "C" {
         // Spin up the background console interface thread on Core 0
         start_cli_task();
 
+
+
         // ESP32-S3 (T-Beam Supreme) highly prefers SPI2_HOST (FSPI) for custom IO layouts,
         // while classic ESP32 (TTGO) typically maps to SPI3_HOST (VSPI).
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -226,14 +229,48 @@ extern "C" {
             // display->appendMessage(0, GIT_TAG, 12*6);
             display->printMessage(1, "----------------------");
         }
+
+        // 1. Instantiate the single GNSS orchestrator object injecting resources via constructor paths
+        GnssTimeSync *gnss_module = new GnssTimeSync(
+            (uart_port_t)Config::GPS_UART_NUM, // Injected UART1 hardware controller index
+            Config::GPS_RX_PIN,                // GPIO 9 (ESP TX line connected to u-blox RX)
+            Config::GPS_TX_PIN,                // GPIO 8 (ESP RX line connected to u-blox TX)
+            Config::GPS_PPS_PIN                // GPIO 6 (High-precision hardware PPS input channel)
+        );
+
+        // 2. Arm the hardware ISR interrupt vectors, configure UART registers and spin up tasks
+        gnss_module->startGnssSync();
+
         // Main system watchdog and status monitor loop
         while (true) {
+            // 1. Log generic system operational and resource data
             ESP_LOGI(TAG, "[%s v%s] Operational. Free Heap: %lu bytes",
-                 Config::PROJECT_TITLE,
-                 Config::PROJECT_VERSION,
-                 (unsigned long)esp_get_free_heap_size());
+                     Config::PROJECT_TITLE,
+                     Config::PROJECT_VERSION,
+                     (unsigned long)esp_get_free_heap_size());
+
+            // Optional Git footprint reference trace
             // ESP_LOGI(TAG, "Git-Hash: %s", GIT_HASH);
 
+            // 2. Fetch and log thread-safe data snapshot from the GNSS module
+            gnss_data_t gps_snapshot;
+            if (gnss_module->getLatestData(&gps_snapshot)) {
+                if (gps_snapshot.fix_quality > 0) {
+                    // High-precision geographic metrics representation with explicit N/S and E/W direction parsing
+                    ESP_LOGI(TAG, "GNSS Location: %02d:%02d:%02d UTC | Lat: %.6f %c | Lon: %.6f %c | Alt: %.1fm | Fix: %d",
+                             gps_snapshot.hour, gps_snapshot.minute, gps_snapshot.second,
+                             std::abs(gps_snapshot.latitude),  (gps_snapshot.latitude >= 0) ? 'N' : 'S',
+                             std::abs(gps_snapshot.longitude), (gps_snapshot.longitude >= 0) ? 'E' : 'W',
+                             gps_snapshot.altitude,
+                             gps_snapshot.fix_quality);
+                } else {
+                    ESP_LOGI(TAG, "GNSS Engine searching for satellites (No Fix)...");
+                }
+            } else {
+                ESP_LOGE(TAG, "Failed to retrieve a valid thread-safe data snapshot from GNSS module mutex.");
+            }
+
+            // 3. Yield task execution back to scheduler for 10 seconds
             vTaskDelay(pdMS_TO_TICKS(10000));
         }
     }
