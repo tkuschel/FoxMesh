@@ -64,6 +64,8 @@ public:
      */
     bool getLatestData(gnss_data_t *out_data);
 
+    uint32_t getTotalBytes();
+
 private:
     uart_port_t m_uart_num;
     gpio_num_t m_tx_pin;
@@ -75,6 +77,7 @@ private:
     SemaphoreHandle_t m_data_mutex; // Mutex protecting the data structure shared across cores
 
     gnss_data_t m_current_data; // Storage container for the latest parsed values
+    uint32_t m_total_bytes_received = 0; // NEW: Global byte counter
 
     // Static member variable to store the exact hardware timestamp of the last PPS pulse.
     static volatile uint64_t m_last_pps_us;

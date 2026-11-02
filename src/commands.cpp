@@ -623,7 +623,10 @@ public:
 class GpsCommand : public CliCommand {
 public:
     // The command now accepts both "gps" and "gnss" context names through instantiation
-    GpsCommand(std::string name) : CliCommand(std::move(name), "Display high-precision geographic coordinates and satellite status.", "gps [f|full]") {}
+    GpsCommand(std::string name)
+        : CliCommand(name,
+                    "Display high-precision geographic coordinates and satellite status.",
+                    name + " [f|full]") {} // Automatically scales syntax to "gps [f|full]" or "gnss [f|full]"
 
     // Safe command, allowed to be abbreviated like status or version (e.g., 'gp' or 'gn')
     bool isStrictMatch() const override { return false; }
@@ -661,6 +664,15 @@ public:
                 }
             } else {
                 respond(channel, "Position    : Coordinates locked. Waiting for valid satellite geometry.\r\n");
+
+                uint32_t total_io_bytes = gnss_system->getTotalBytes(); // Create getter for m_total_bytes_received
+
+                respond(channel, "Hardware IO : ");
+                if (total_io_bytes > 0) {
+                    respond(channel, "RECEIVING DATA (Total processed: %lu bytes). Hardware connection is OK!\r\n", (unsigned long) total_io_bytes);
+                } else {
+                    respond(channel, "NO DATA READ! Check u-blox M10S power (AXP2101 ALDO4) and wiring (GPIO 8/9).\r\n");
+                }
             }
         } else {
             respond(channel, "Error: Failed to fetch thread-safe data snapshot from hardware mutex.\r\n");
@@ -679,7 +691,8 @@ void initialize_commands_system() {
     global_command_manager->registerCommand(std::make_unique<SetCallsignCommand>());
     global_command_manager->registerCommand(std::make_unique<OnlineModeCommand>());
     global_command_manager->registerCommand(std::make_unique<GpsCommand>("gps"));
-    global_command_manager->registerCommand(std::make_unique<GpsCommand>("gnss")); // <-- Alias mapping
+    auto gnssAlias = std::make_unique<GpsCommand>("gnss");
+    global_command_manager->registerCommand(std::move(gnssAlias));
     global_command_manager->registerCommand(std::make_unique<VersionCommand>());
     global_command_manager->registerCommand(std::make_unique<StatusCommand>());
     global_command_manager->registerCommand(std::make_unique<MuteCommand>());

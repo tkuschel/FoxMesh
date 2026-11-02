@@ -8,6 +8,7 @@
  * For the full license terms, see the LICENSE file in the project root.
  */
 
+#include "config.hpp"
 #include "gnss_sync.hpp"
 #include <sys/time.h>
 #include <cstring>
@@ -33,13 +34,24 @@ GnssTimeSync::GnssTimeSync(uart_port_t uart_num, gpio_num_t tx_pin, gpio_num_t r
     : m_uart_num(uart_num), m_tx_pin(tx_pin), m_rx_pin(rx_pin), m_pps_pin(pps_pin),
       m_uart_queue(nullptr), m_task_handle(nullptr) {
 
+    m_total_bytes_received = 0;
     // Create a Mutex binary semaphore to safely synchronize multi-core data reads/writes
     m_data_mutex = xSemaphoreCreateMutex();
     std::memset(&m_current_data, 0, sizeof(gnss_data_t));
+
 }
 
 void GnssTimeSync::startGnssSync() {
     ESP_LOGI(TAG, "Initializing GNSS Subsystem (UART %d, PPS Pin: %d)...", m_uart_num, m_pps_pin);
+
+// NEW: Force the u-blox M10S internal hardware enable pin to HIGH to wake up the core
+    ESP_LOGI(TAG, "Pulling GPS Hardware Enable Pin (GPIO %d) to HIGH...", Config::GPS_EN_PIN);
+    gpio_reset_pin(Config::GPS_EN_PIN);
+    gpio_set_direction(Config::GPS_EN_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_level(Config::GPS_EN_PIN, 1); // Set to 1 (HIGH) to inject enable voltage
+
+    // Give the u-blox M10S chip a short moment to clear its internal bootloader state
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     // 1. Configure the Injected PPS Hardware GPIO Line & Interrupt Hook
     gpio_config_t pps_conf = {};
@@ -57,6 +69,7 @@ void GnssTimeSync::startGnssSync() {
     // 2. Configure Injected UART Driver Controller Layer
     uart_config_t uart_config = {};
     uart_config.baud_rate           = 38400; // Native u-blox M10S default supreme execution speed
+    // uart_config.baud_rate = 9600;
     uart_config.data_bits           = UART_DATA_8_BITS;
     uart_config.parity              = UART_PARITY_DISABLE;
     uart_config.stop_bits           = UART_STOP_BITS_1;
@@ -108,9 +121,15 @@ void GnssTimeSync::uartEventTask(void *pvParameters) {
             switch (event.type) {
                 case UART_DATA: {
                     int bytes_read = uart_read_bytes(instance->m_uart_num, data_buffer, event.size, portMAX_DELAY);
-
+                    if (bytes_read > 0) {
+                        instance->m_total_bytes_received += bytes_read;
+                    }
                     for (int i = 0; i < bytes_read; i++) {
                         char character = static_cast<char>(data_buffer[i]);
+
+                        // NEW RAW NMEA echo to USB Console for Debugging
+                        printf("%c", character);
+
 
                         // Accumulate incoming serial stream data bytes into bounded sentence lines
                         if (character == '\r' || character == '\n') {
@@ -252,4 +271,8 @@ bool GnssTimeSync::getLatestData(gnss_data_t *out_data) {
         return true;
     }
     return false; // Mutex was blocked by processing task
+}
+
+uint32_t GnssTimeSync::getTotalBytes() {
+    return m_total_bytes_received;
 }

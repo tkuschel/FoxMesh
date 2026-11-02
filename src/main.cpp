@@ -27,6 +27,7 @@
 #include "i2c.hpp"
 #include "display.hpp" // FIXED: Added missing header for DisplayController
 #include "lora.hpp"
+#include "pmu.hpp"
 
 /**
  * @brief Global log categorization tag context for the main application loader.
@@ -52,6 +53,11 @@ DisplayController* display = nullptr;
  * @brief Global pointer tracking the Semtech SX1276 core radio frequency
 */
 LoraController* lora_module = nullptr;
+
+/**
+ * @brief Global pointer tracking the synchronized high-precision GNSS instance.
+ */
+GnssTimeSync* gnss_system = nullptr;
 
 /**
  * @brief Static singleton instance governing hardware status LED blink patterns.
@@ -161,23 +167,32 @@ extern "C" {
 
         // CRITICAL T-BEAM SUPREME STEP: Initialize power management right after I2C is alive
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
-        // CRITICAL: Register the AXP2101 as an official I2C device on the native ESP-IDF bus
-        i2c_device_config_t pmic_dev_config = {};
-        pmic_dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-        pmic_dev_config.device_address   = 0x34; // Hardware AXP2101 slave address
-        pmic_dev_config.scl_speed_hz     = Config::OLED_I2C_FREQ_HZ; // 400000 Hz
+        // 1. Initialize a dedicated native I2C master bus for the PMIC on Pins 42/41
+        i2c_master_bus_config_t pmic_bus_config = {};
+        pmic_bus_config.clk_source       = I2C_CLK_SRC_DEFAULT;
+        pmic_bus_config.i2c_port         = I2C_NUM_1; // Use I2C_NUM_1 to not conflict with your custom i2c class on I2C_NUM_0
+        pmic_bus_config.scl_io_num       = (gpio_num_t)41; // Fixed Native T-Beam S3 Supreme SCL Pin
+        pmic_bus_config.sda_io_num       = (gpio_num_t)42; // Fixed Native T-Beam S3 Supreme SDA Pin
+        pmic_bus_config.glitch_ignore_cnt = 7;
+        pmic_bus_config.flags.enable_internal_pullup = true;
 
-        // Retrieve the underlying native bus handle from your custom i2c wrapper class.
-        // NOTE: Your custom 'i2c' class must expose its internal i2c_master_bus_handle_t!
-        // We assume here a getter like 'get_native_handle()' exists.
-        i2c_master_bus_handle_t native_bus = i2c_bus->get_bus_handle();
+        i2c_master_bus_handle_t pmic_master_bus_handle;
+        esp_err_t bus_err = i2c_new_master_bus(&pmic_bus_config, &pmic_master_bus_handle);
 
-        esp_err_t pmic_err = i2c_master_bus_add_device(native_bus, &pmic_dev_config, &pmic_device_handle);
-        if (pmic_err == ESP_OK) {
-            // Power up the rails immediately before Display or LoRa drivers are called
-            init_power_management();
+        if (bus_err == ESP_OK) {
+            // 2. Register the AXP2101 device onto this dedicated system bus
+            PowerManagement *pmu = new PowerManagement(pmic_master_bus_handle, 0x34);
+               if (pmu->init() == ESP_OK) {
+                   // Pulse the LoRa Reset pin once power is fully stabilized to un-stick the SX1262
+                   ESP_LOGI(TAG, "Executing LoRa transceiver hardware pulse sequence...");
+                   gpio_set_direction(Config::LORA_RST_PIN, GPIO_MODE_OUTPUT);
+                   gpio_set_level(Config::LORA_RST_PIN, 0);
+                   vTaskDelay(pdMS_TO_TICKS(50));
+                   gpio_set_level(Config::LORA_RST_PIN, 1);
+                   vTaskDelay(pdMS_TO_TICKS(50));
+               }
         } else {
-            ESP_LOGE(TAG, "Failed to anchor AXP2101 on I2C Driver: %s", esp_err_to_name(pmic_err));
+            ESP_LOGE(TAG, "Failed to initialize native PMIC I2C master bus: %s", esp_err_to_name(bus_err));
         }
 #endif
 
@@ -231,7 +246,7 @@ extern "C" {
         }
 
         // 1. Instantiate the single GNSS orchestrator object injecting resources via constructor paths
-        GnssTimeSync *gnss_module = new GnssTimeSync(
+        gnss_system = new GnssTimeSync(
             (uart_port_t)Config::GPS_UART_NUM, // Injected UART1 hardware controller index
             Config::GPS_RX_PIN,                // GPIO 9 (ESP TX line connected to u-blox RX)
             Config::GPS_TX_PIN,                // GPIO 8 (ESP RX line connected to u-blox TX)
@@ -239,7 +254,7 @@ extern "C" {
         );
 
         // 2. Arm the hardware ISR interrupt vectors, configure UART registers and spin up tasks
-        gnss_module->startGnssSync();
+        gnss_system->startGnssSync();
 
         // Main system watchdog and status monitor loop
         while (true) {
@@ -254,7 +269,7 @@ extern "C" {
 
             // 2. Fetch and log thread-safe data snapshot from the GNSS module
             gnss_data_t gps_snapshot;
-            if (gnss_module->getLatestData(&gps_snapshot)) {
+            if (gnss_system->getLatestData(&gps_snapshot)) {
                 if (gps_snapshot.fix_quality > 0) {
                     // High-precision geographic metrics representation with explicit N/S and E/W direction parsing
                     ESP_LOGI(TAG, "GNSS Location: %02d:%02d:%02d UTC | Lat: %.6f %c | Lon: %.6f %c | Alt: %.1fm | Fix: %d",

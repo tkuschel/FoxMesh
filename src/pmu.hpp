@@ -30,7 +30,10 @@ private:
     uint8_t _address;
 
     // AXP2101 Register Definitions
-    static constexpr uint8_t REG_POWER_ENABLE2 = 0x91;
+    static constexpr uint8_t REG_POWER_ENABLE2 = 0x90;
+    static constexpr uint8_t REG_BLD0x_VOLTAGE = 0x91;
+    static constexpr uint8_t REG_DLD0x_VOLTAGE = 0x92;
+
     static constexpr uint8_t REG_ALDO3_VOLTAGE = 0x94;
     static constexpr uint8_t REG_ALDO4_VOLTAGE = 0x95;
 };

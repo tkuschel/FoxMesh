@@ -41,7 +41,7 @@ static i2c *cli_i2c_bus = nullptr;
 LedController *led_system = nullptr;
 DisplayController *oled_display = nullptr;
 LoraController *lora_system = nullptr;
-GnssTimeSync *gnss_system = nullptr; // new global pointer to GNSS
+extern GnssTimeSync *gnss_system; // new global pointer to GNSS, defined in main_app()
 
 #define CLI_UART_PORT UART_NUM_0
 #define BUF_SIZE 1024
