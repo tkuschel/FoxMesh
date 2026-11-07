@@ -12,11 +12,11 @@
 #include <cstdio>
 #include "esp_log.h"
 
-static const char* TAG = "I2C";
+static const char *TAG = "I2C";
 
-i2c::i2c(int sda_pin, int scl_pin, uint32_t clk_speed_hz) {
+i2c::i2c(i2c_port_t port, int sda_pin, int scl_pin, uint32_t clk_speed_hz) {
     i2c_master_bus_config_t bus_config = {};
-    bus_config.i2c_port = I2C_NUM_0;
+    bus_config.i2c_port = port; // FIXED: Dynmaic port assignment instead of I2C_NUM_0;
     bus_config.sda_io_num = static_cast<gpio_num_t>(sda_pin); // FIXED: Added explicit typecast to gpio_num_t
     bus_config.scl_io_num = static_cast<gpio_num_t>(scl_pin); // FIXED: Added explicit typecast to gpio_num_t
     bus_config.clk_source = I2C_CLK_SRC_DEFAULT;

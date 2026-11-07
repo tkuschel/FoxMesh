@@ -16,7 +16,7 @@
 class i2c {
 public:
     // Constructor initializes GPIO pins and configures the native ESP-IDF bus
-    i2c(int sda_pin, int scl_pin, uint32_t clk_speed_hz);
+    i2c(i2c_port_t port, int sda_pin, int scl_pin, uint32_t clk_speed_hz);
     ~i2c();
 
     // Disable copy semantics to prevent duplicate hardware resource assignment

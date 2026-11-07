@@ -11,6 +11,7 @@
 #include "display.hpp"
 #include <cstring>
 #include <cstdio>
+#include "driver/i2c_types.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "config.hpp"
@@ -253,7 +254,7 @@ static const uint8_t font_5x7[][5] = {
  * @brief Construct a new Display Controller object and register the device on the I2C bus.
  * @param bus_pointer Pointer to the active, thread-safe hardware I2C master bus instance.
  */
-DisplayController::DisplayController(i2c *bus_pointer) : m_bus(bus_pointer) {
+DisplayController::DisplayController(i2c_master_bus_handle_t *i2c_handle) : m_bus(i2c_handle) {
     if (m_bus == nullptr) {
         ESP_LOGE(TAG, "Failed creation: Input I2C bus pointer context is null!");
         return;
@@ -263,7 +264,7 @@ DisplayController::DisplayController(i2c *bus_pointer) : m_bus(bus_pointer) {
     i2c_device_config_t dev_config = {};
     dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
     dev_config.device_address = static_cast<uint16_t>(Config::OLED_ADDRESS);
-    dev_config.scl_speed_hz = Config::OLED_I2C_FREQ_HZ;
+    dev_config.scl_speed_hz = Config::I2C_FREQ_HZ;
 
     // Safely attach the display device context onto OM Tom's infrastructure bus handle
     esp_err_t err = i2c_master_bus_add_device(m_bus->get_bus_handle(), &dev_config, &m_devHandle);

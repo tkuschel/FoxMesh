@@ -12,7 +12,7 @@
 
 #include "i2c.hpp"
 #include "led.hpp"
-#include "display.hpp"
+// #include "display.hpp"
 #include "lora.hpp"
 
 /**

@@ -347,10 +347,10 @@ public:
         gpio_set_level(Config::LORA_RST_PIN, 0);
 
         // 2. Clear I2C SDA/SCL lines by forcing them High/Floating to un-stick the AXP2101 PMIC
-        gpio_set_direction(Config::OLED_SDA_PIN, GPIO_MODE_INPUT_OUTPUT_OD);
-        gpio_set_direction(Config::OLED_SCL_PIN, GPIO_MODE_INPUT_OUTPUT_OD);
-        gpio_set_level(Config::OLED_SDA_PIN, 1);
-        gpio_set_level(Config::OLED_SCL_PIN, 1);
+//        gpio_set_direction(Config::OLED_SDA_PIN, GPIO_MODE_INPUT_OUTPUT_OD);
+//        gpio_set_direction(Config::OLED_SCL_PIN, GPIO_MODE_INPUT_OUTPUT_OD);
+//        gpio_set_level(Config::OLED_SDA_PIN, 1);
+//        gpio_set_level(Config::OLED_SCL_PIN, 1);
 
         // Give the peripheral hardware chips a moment to fully power-down and settle
         vTaskDelay(pdMS_TO_TICKS(200));

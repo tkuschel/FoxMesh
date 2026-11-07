@@ -8,7 +8,7 @@
  * For the full license terms, see the LICENSE file in the project root.
  */
 
- #include "pmu.hpp"
+#include "pmu.hpp"
 #include "esp_log.h"
 
 static const char* TAG = "PMU";
@@ -35,11 +35,11 @@ esp_err_t PowerManagement::write_register(uint8_t reg, uint8_t data) {
 esp_err_t PowerManagement::init() {
     ESP_LOGI(TAG, "Initializing AXP2101 PMIC...");
 
-    // Set ALDO3 (LoRa) to 3.3V (0x1A corresponds to 3.3V in AXP2101 step calculation)
-    ESP_ERROR_CHECK(write_register(REG_ALDO3_VOLTAGE, 0x1A));
+    // Set ALDO3 (LoRa) to 3.3V (0x1C corresponds to 3.3V in AXP2101 step calculation)
+    ESP_ERROR_CHECK(write_register(REG_ALDO3_VOLTAGE, 0x1C));
 
     // Set ALDO4 (u-blox M10S) to 3.3V
-    ESP_ERROR_CHECK(write_register(REG_ALDO4_VOLTAGE, 0x1A));
+    ESP_ERROR_CHECK(write_register(REG_ALDO4_VOLTAGE, 0x1C));
 
     // Enable ALDO1, ALDO3, ALDO4 power outputs
     // Bitmask depends on PMIC routing for T-Beam Supreme

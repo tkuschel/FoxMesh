@@ -29,11 +29,20 @@ namespace Config {
     constexpr gpio_num_t LED_GPIO_PIN     = static_cast<gpio_num_t>(BOARD_LED_PIN);
     constexpr int BLINK_INTERVAL_MS       = 5000;
 
+    // #define I2C1_SDA                    (42)
+    // #define I2C1_SCL                    (41)
+    // #define PMU_IRQ                     (40)
     // OLED Display I2C Bus Configuration
-    constexpr gpio_num_t OLED_SDA_PIN     = static_cast<gpio_num_t>(BOARD_I2C_SDA);
-    constexpr gpio_num_t OLED_SCL_PIN     = static_cast<gpio_num_t>(BOARD_I2C_SCL);
-    constexpr uint32_t OLED_I2C_FREQ_HZ   = 400000; // 400kHz Fast Mode execution speed
+    constexpr gpio_num_t I2C_SDA_PIN   = static_cast<gpio_num_t>(BOARD_I2C_SDA);
+    constexpr gpio_num_t I2C_SCL_PIN   = static_cast<gpio_num_t>(BOARD_I2C_SCL);
+    constexpr uint32_t   I2C_FREQ_HZ   = 400000; // 400kHz Fast Mode execution speed
+    constexpr gpio_num_t I2C1_SDA_PIN  = static_cast<gpio_num_t>(42);
+    constexpr gpio_num_t I2C1_SCL_PIN  = static_cast<gpio_num_t>(41);
+    constexpr uint32_t   I2C1_FREQ_HZ  = 400000; // 400kHz Fast Mode execution speed
+
+    constexpr gpio_num_t PMU_IRQ       = static_cast<gpio_num_t>(40);
     constexpr int OLED_ADDRESS            = 0x3C;   // Native SSD1306 controller hardware address
+    constexpr int PMU_ADDRESS             = 0x34;   // Native PMU AXP2101 controller hardware address
 
     // =========================================================================
     // TARGET PER-BOARD HARDWARE ROUTING & TRANSCEIVER LAYOUT

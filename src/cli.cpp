@@ -21,7 +21,7 @@
 #include "esp_log.h"
 #include "config.hpp"
 #include "lora.hpp"
-#include "display.hpp"
+// #include "display.hpp"
 #include "esp_vfs_dev.h"
 
 // Unified low-level hardware drivers for both targets

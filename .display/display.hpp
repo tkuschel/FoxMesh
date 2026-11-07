@@ -16,7 +16,7 @@
 
 class DisplayController {
 public:
-    explicit DisplayController(i2c* bus_pointer);
+    explicit DisplayController(i2c_master_bus_handle_t *i2c_handle);
     virtual ~DisplayController();
 
     // Disallow copying to prevent duplicate hardware resource assignment

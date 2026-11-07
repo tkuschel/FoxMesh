@@ -18,15 +18,15 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
-#include "driver/i2c_master.h" // Modern ESP-IDF I2C drivers
+// #include "driver/i2c_master.h" // Modern ESP-IDF I2C drivers
 #include "esp_log.h"
 #include "gnss_sync.hpp"
 #include "config.hpp"
-#include "led.hpp"
-#include "cli.hpp"
+// #include "led.hpp"
+// #include "cli.hpp"
 #include "i2c.hpp"
-#include "display.hpp" // FIXED: Added missing header for DisplayController
-#include "lora.hpp"
+// #include "display.hpp" // FIXED: Added missing header for DisplayController
+// #include "lora.hpp"
 #include "pmu.hpp"
 
 /**
@@ -37,7 +37,8 @@ static const char *TAG = "MAIN";
 /**
  * @brief Global pointer tracking the synchronized thread-safe I2C master bus instance.
  */
-i2c* i2c_bus = nullptr;
+// i2c0 *i2c_bus = nullptr;
+//i2c1 *i2c_bus = nullptr;
 
 /**
  * @brief Global native ESP-IDF device handle specifically tracking the AXP2101 PMIC.
@@ -47,7 +48,7 @@ static i2c_master_dev_handle_t pmic_device_handle = nullptr;
 /**
  * @brief Global pointer tracking the asynchronous isolated OLED render controller instance.
  */
-DisplayController* display = nullptr;
+// DisplayController* display = nullptr;
 
 /**
  * @brief Global pointer tracking the Semtech SX1276 core radio frequency
@@ -161,49 +162,33 @@ extern "C" {
         // Launch background blink task
         led.startTask();
 
+        vTaskDelay(pdMS_TO_TICKS(10000));
+
         // Dynamically instantiate the synchronized I2C master bus at 400kHz Fast-Mode
         // Config::OLED_I2C_FREQ_HZ should now point to 400000 for optimized performance
-        i2c_bus = new i2c(Config::OLED_SDA_PIN, Config::OLED_SCL_PIN, Config::OLED_I2C_FREQ_HZ);
-
-        // CRITICAL T-BEAM SUPREME STEP: Initialize power management right after I2C is alive
+        i2c i2c0(I2C_NUM_0, Config::I2C_SDA_PIN, Config::I2C_SCL_PIN, Config::I2C_FREQ_HZ);
+        i2c0.scan();
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
-        // 1. Initialize a dedicated native I2C master bus for the PMIC on Pins 42/41
-        i2c_master_bus_config_t pmic_bus_config = {};
-        pmic_bus_config.clk_source       = I2C_CLK_SRC_DEFAULT;
-        pmic_bus_config.i2c_port         = I2C_NUM_1; // Use I2C_NUM_1 to not conflict with your custom i2c class on I2C_NUM_0
-        pmic_bus_config.scl_io_num       = (gpio_num_t)41; // Fixed Native T-Beam S3 Supreme SCL Pin
-        pmic_bus_config.sda_io_num       = (gpio_num_t)42; // Fixed Native T-Beam S3 Supreme SDA Pin
-        pmic_bus_config.glitch_ignore_cnt = 7;
-        pmic_bus_config.flags.enable_internal_pullup = true;
-
-        i2c_master_bus_handle_t pmic_master_bus_handle;
-        esp_err_t bus_err = i2c_new_master_bus(&pmic_bus_config, &pmic_master_bus_handle);
-
-        if (bus_err == ESP_OK) {
-            // 2. Register the AXP2101 device onto this dedicated system bus
-            PowerManagement *pmu = new PowerManagement(pmic_master_bus_handle, 0x34);
-               if (pmu->init() == ESP_OK) {
-                   // Pulse the LoRa Reset pin once power is fully stabilized to un-stick the SX1262
-                   ESP_LOGI(TAG, "Executing LoRa transceiver hardware pulse sequence...");
-                   gpio_set_direction(Config::LORA_RST_PIN, GPIO_MODE_OUTPUT);
-                   gpio_set_level(Config::LORA_RST_PIN, 0);
-                   vTaskDelay(pdMS_TO_TICKS(50));
-                   gpio_set_level(Config::LORA_RST_PIN, 1);
-                   vTaskDelay(pdMS_TO_TICKS(50));
-               }
-        } else {
-            ESP_LOGE(TAG, "Failed to initialize native PMIC I2C master bus: %s", esp_err_to_name(bus_err));
-        }
+        i2c i2c1(I2C_NUM_1, Config::I2C1_SDA_PIN, Config::I2C1_SCL_PIN, Config::I2C1_FREQ_HZ);
+        i2c1.scan();
 #endif
 
+
+        // CRITICAL T-BEAM SUPREME STEP: Initialize power management right after I2C is alive
+        // #define I2C1_SDA                    (42)
+        // #define I2C1_SCL                    (41)
+        // #define PMU_IRQ                     (40)
+
+        // PowerManagement *pmu = new PowerManagement(pmic_master_bus_handle, PMU_ADDRESS); // 0x34
+
         // Instantiate and activate the isolated background render worker on Core 0
-        display = new DisplayController(i2c_bus);
+//        display = new DisplayController( i2c0.get_bus_handle() );
         if (display != nullptr) {
             display->startTask();
         }
 
         // Pass the bus instance dependency to the interactive terminal layer
-        cli_init(i2c_bus, &led, display);
+        cli_init(i2c0.get_bus_handle(), &led, display);
 
 
 
