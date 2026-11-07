@@ -16,12 +16,14 @@ gnss::gnss(uart_port_t uart_num, int tx_pin, int rx_pin, uint32_t baud) : _uart_
     memset(_line_buffer, 0, sizeof(_line_buffer));
 
     uart_config_t uart_config = {
-        .baud_rate = (int)baud,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
+        .baud_rate           = (int)baud,
+        .data_bits           = UART_DATA_8_BITS,
+        .parity              = UART_PARITY_DISABLE,
+        .stop_bits           = UART_STOP_BITS_1,
+        .flow_ctrl           = UART_HW_FLOWCTRL_DISABLE,
+        .rx_flow_ctrl_thresh = 0,
+        .source_clk          = UART_SCLK_DEFAULT,
+        .flags               = {0},
     };
 
     // Install driver with an optimized 256-byte RX buffer (plenty for byte-by-byte polling)
