@@ -72,6 +72,8 @@ extern "C" {
         }
 #endif
 
+        pmu_bus.scan();
+
         // GNSS-Empfänger instanziieren (Nutzt UART_NUM_1, TX=8, RX=9, 9600 Baud)
         gnss gps_receiver(UART_NUM_1, 8, 9, 9600);
         ESP_LOGI(TAG, "GNSS Driver Subsystem initialized.");
