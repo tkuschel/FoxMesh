@@ -104,17 +104,21 @@ namespace Config {
     constexpr uint8_t  LORA_DEFAULT_CR      = 6;    // CR 4/6 -> Denominator is 6
 
     // Predefined LoRa Sync Word options for hardware correlation filtering, see docs/lora/device-settings.md
-    constexpr uint8_t LORA_SYNC_WORD_PUBLIC_NETWORK_MODE   = 0x34; // MeshCom (ÖVSV standard for amateur radio mesh),
-                                                                   // The Things Network, Helium
-    constexpr uint8_t LORA_SYNC_WORD_TACTICAL_NETWORK_MODE = 0x24; // Meshtastic (Civilian off-grid tactical mesh network)
-    constexpr uint8_t LORA_SYNC_WORD_PRIVATE_NETWORK_MODE  = 0x12; // Semtech Default (Factory default / Private point-to-point)
-    constexpr uint8_t LORA_SYNC_WORD_ISOLATED_ARRAY_A      = 0x55; // Custom / Experimental individual networks (highly isolated)
-    constexpr uint8_t LORA_SYNC_WORD_ISOLATED_ARRAY_B      = 0xAA; // Custom / Experimental individual networks (highly isolated)
+    constexpr uint8_t LORA_SYNC_WORD_PUBLIC_NETWORK_MODE     = 0x34; // LoRaWAN Default Gateways, The Things Network (TNN), Helium, ChirpStack,
+                                                                     // TinyGS (0x34) LoRa Satellites (Cubesats)
+    constexpr uint8_t LORA_SYNC_WORD_MESHTASTIC_NETWORK_MODE = 0x2B; // Meshtastic Default
+    constexpr uint8_t LORA_SYNC_WORD_MESHCOM_NETWORK_MODE    = 0x2B; // MeshCom (ÖVSV standard for amateur radio mesh), also Meshtastic official standard
+    constexpr uint8_t LORA_SYNC_WORD_TACTICAL_NETWORK_MODE   = 0x24; // Tactical/Team Meshtastic forks (Civilian off-grid tactical mesh network)
+    constexpr uint8_t LORA_SYNC_WORD_PRIVATE_NETWORK_MODE    = 0x12; // Semtech Default (Factory default / Private point-to-point), LoRa-APRS, MeshCore, Reticulum,
+                                                                     // ExpressLRS (ELRS), TinyGS (0x12) LoRa Satellites (Cubesats)
+                                                                     // disaster.radio / Ripple (former, specialized off-grid-mesh projects)
+    constexpr uint8_t LORA_SYNC_WORD_FOSSASAT_NETWORK_MODE   = 0xF3  // Special commercial/amateur LoRa satellite constellations (e.g. FOSSASAT) to prevent interference from terristrial LoRa traffic
+    constexpr uint8_t LORA_SYNC_WORD_ISOLATED_ARRAY_A        = 0x55; // Custom / Experimental individual networks (highly isolated)
+    constexpr uint8_t LORA_SYNC_WORD_ISOLATED_ARRAY_B        = 0xAA; // Custom / Experimental individual networks (highly isolated)
 
     // Active hardware synchronization configuration selector
-    constexpr uint8_t LORA_SYNC_WORD = LORA_SYNC_WORD_PUBLIC_NETWORK_MODE;
+    constexpr uint8_t LORA_SYNC_WORD = LORA_SYNC_WORD_MESHCOM_NETWORK_MODE;
 
-    // Expand hardware preamble length to 12 symbols for robust network correlation (MeshCom value)
     // Expand hardware preamble length to 12 symbols for robust network correlation (MeshCom value)
     constexpr uint16_t LORA_PREAMBLE_LENGTH = 12; // FIXED: Changed uint18_t to correct uint16_t
 
