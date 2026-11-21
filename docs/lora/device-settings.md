@@ -4,7 +4,7 @@ This document provides a comprehensive overview of the **MeshCom** parameters, f
 
 ---
 
-## 📻 Part 1: MeshCom Frequency & Required Parameters
+## 📻 Part 1: MeshCom Frequency & Required Parameters in the 70cm Band (433 MHz)
 
 In Austria and the entire D-A-CH region, the amateur radio project **MeshCom** (MeshCom 4.0) operates on the primary standard frequency of **433.175 MHz**.
 
@@ -70,11 +70,12 @@ While register `0x39` accepts any 8-bit value from `0x00` to `0xFF`, specific co
 
 | Sync Word | Network Profile | Operational Target / Description |
 | :--- | :--- | :--- |
-| **`0x34`** | **Public LoRaWAN** | **MeshCom Standard** (ÖVSV standard for amateur radio mesh infrastructures operating at **433.175 MHz**). Triggers advanced hardware preamble correlation rules in the silicon for maximum noise immunity near the thermal noise floor. |
-| **`0x24`** | **Tactical Mesh** | **Meshtastic Default** (Civilian off-grid digital communications). Used globally on the license-free 433 MHz ISM and 868 MHz bands. Requires modern low-data-rate optimization configurations to eliminate sensitivity degradation on legacy SX127x silicon steps. |
-| **`0x12`** | **Private Network** | **Semtech Factory Default**. Standard baseline initialization value utilized for isolated point-to-point (P2P) bridging outside global networks. |
-| **`0x55`** | **Isolated Array A** | **Custom / Experimental**. Alternating bit pattern (`01010101`) providing optimal transition density for the internal clock-data recovery (CDR) PLL loop. |
-| **`0xAA`** | **Isolated Array B** | **Custom / Experimental**. Alternating bit pattern (`10101010`) offering optimal signal integrity transitions for proprietary cryptography deployments. |
+| **`0x2B`** | **Meshtastic Default** | **MeshCom 4.0** (ÖVSV standard for amateur radio mesh infrastructures operating at **433.175 MHz**). Official standard for Meshtastic & MeshCom. Triggers advanced hardware preamble correlation rules in the silicon for maximum noise immunity near the thermal noise floor. |
+| **`0x12`** | **Private Network** | **MeshCore Default, LoRa-APRS, Reticulum & Semtech Factory Default**. Standard baseline initialization value utilized for isolated point-to-point (P2P) bridging outside global networks. |
+| **`0x34`** | **Public LoRaWAN** | **LoRaWAN Standard**. Official Semtech value for public LoRaWAN networks (TTN, Helium, ChirpStack)
+| **`0x24`** | **Tactical Mesh** | **Forks of Meshtastic** (Civilian off-grid digital communications). Used globally on the license-free 433 MHz ISM and 868 MHz bands. Requires modern low-data-rate optimization configurations to eliminate sensitivity degradation on legacy SX127x silicon steps. Closed tactical/team Meshtastic forks (ignores public 0x2B traffic) |
+| **`0x55`** | **Isolated Array A** | **Custom / Experimental**. Alternating bit pattern (`01010101`) providing optimal transition density for the internal clock-data recovery (CDR) PLL loop. (Note: prone to false syncs due to alternating bit pattern) |
+| **`0xAA`** | **Isolated Array B** | **Custom / Experimental**. Alternating bit pattern (`10101010`) offering optimal signal integrity transitions for proprietary cryptography deployments. (Note: prone to false syncs due to alternating bit pattern) |
 
 > ⚠️ **The Preamble Correlation Trap:**
 > Custom deployments should strictly avoid sync words with sparse bit transitions (such as `0x00` or `0xFF`). The internal baseband correlation engine relies on distinct signal transitions to sync its timing grid. Continuous sequences of zeros or ones drastically degrade receiver sensitivity.
@@ -84,14 +85,15 @@ To successfully capture live telemetry frames from official ÖVSV MeshCom gatewa
 
 ```cpp
 // Predefined LoRa Sync Word options for hardware correlation filtering
-constexpr uint8_t LORA_SYNC_WORD_PUBLIC_NETWORK_MODE       = 0x34; // MeshCom (ÖVSV standard for amateur radio mesh)
-constexpr uint8_t LORA_SYNC_WORD_TACTICAL_NETWORK_MODE     = 0x24; // Meshtastic (Civilian off-grid tactical mesh network)
+constexpr uint8_t LORA_SYNC_WORD_PUBLIC_NETWORK_MODE       = 0x34; // LoRaWAN Default Gateways (TTN, Helium, ChirpStack)
+constexpr uint8_t LORA_SYNC_WORD_MESHCOM_NETWORK_MODE      = 0x2B; // MeshCom (ÖVSV standard for amateur radio mesh), Meshtastic official standard
+constexpr uint8_t LORA_SYNC_WORD_TACTICAL_NETWORK_MODE     = 0x24; // Tactical/Team Meshtastic forks (Civilian off-grid tactical mesh network)
 constexpr uint8_t LORA_SYNC_WORD_PRIVATE_NETWORK_MODE      = 0x12; // Semtech Default (Factory default / Private point-to-point)
 constexpr uint8_t LORA_SYNC_WORD_CUSTOM_NETWORK_MODE       = 0x55; // Custom / Experimental individual networks (highly isolated)
 constexpr uint8_t LORA_SYNC_WORD_EXPERIMENTAL_NETWORK_MODE = 0xAA; // Custom / Experimental individual networks (highly isolated)
 
 // Active hardware synchronization configuration selector
-constexpr uint8_t LORA_SYNC_WORD = LORA_SYNC_WORD_PUBLIC_NETWORK_MODE;
+constexpr uint8_t LORA_SYNC_WORD = LORA_SYNC_WORD_MESHCOM_NETWORK_MODE;
 ```
 
 This variable updates the Semtech baseband modem alongside an expanded preamble length of **12 symbols** to prevent packet dropping during long correlation windows:
