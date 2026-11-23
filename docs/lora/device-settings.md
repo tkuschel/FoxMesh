@@ -4,7 +4,7 @@ This document provides a comprehensive overview of the **MeshCom** parameters, f
 
 ---
 
-## 📻 Part 1: MeshCom Frequency & Required Parameters
+## 📻 Part 1: MeshCom Frequency & Required Parameters in the 70cm Band (433 MHz)
 
 In Austria and the entire D-A-CH region, the amateur radio project **MeshCom** (MeshCom 4.0) operates on the primary standard frequency of **433.175 MHz**.
 
@@ -70,28 +70,38 @@ While register `0x39` accepts any 8-bit value from `0x00` to `0xFF`, specific co
 
 | Sync Word | Network Profile | Operational Target / Description |
 | :--- | :--- | :--- |
-| **`0x34`** | **Public LoRaWAN** | **MeshCom Standard** (ÖVSV standard for amateur radio mesh infrastructures operating at **433.175 MHz**). Triggers advanced hardware preamble correlation rules in the silicon for maximum noise immunity near the thermal noise floor. |
-| **`0x24`** | **Tactical Mesh** | **Meshtastic Default** (Civilian off-grid digital communications). Used globally on the license-free 433 MHz ISM and 868 MHz bands. Requires modern low-data-rate optimization configurations to eliminate sensitivity degradation on legacy SX127x silicon steps. |
-| **`0x12`** | **Private Network** | **Semtech Factory Default**. Standard baseline initialization value utilized for isolated point-to-point (P2P) bridging outside global networks. |
-| **`0x55`** | **Isolated Array A** | **Custom / Experimental**. Alternating bit pattern (`01010101`) providing optimal transition density for the internal clock-data recovery (CDR) PLL loop. |
-| **`0xAA`** | **Isolated Array B** | **Custom / Experimental**. Alternating bit pattern (`10101010`) offering optimal signal integrity transitions for proprietary cryptography deployments. |
+| **`0x2B`** | **Meshtastic Default** | **MeshCom 4.0** (ÖVSV standard for amateur radio mesh infrastructures operating at **433.175 MHz**). Official standard for Meshtastic & MeshCom. Triggers advanced hardware preamble correlation rules in the silicon for maximum noise immunity near the thermal noise floor. |
+| **`0x12`** | **Private Network** | **MeshCore Default, LoRa-APRS, Reticulum & Semtech Factory Default**. Standard baseline initialization value utilized for isolated point-to-point (P2P) bridging outside global networks. Also used by **ExpressLRS (ELRS)** (868/915 MHz RC links), **disaster.radio**, and **Amazon Sidewalk** (LoRa layer). |
+| **`0x34`** | **Public LoRaWAN** | **LoRaWAN Standard**. Official Semtech value for public LoRaWAN networks (TTN, Helium, ChirpStack), also used by **TinyGS** LoRa Satellites (CubeSats). |
+| **`0x24`** | **Tactical Mesh** | **Forks of Meshtastic** (Civilian off-grid digital communications). Used globally on the license-free 433 MHz ISM and 868 MHz bands. Requires modern low-data-rate optimization configurations to eliminate sensitivity degradation on legacy SX127x silicon steps. Closed tactical/team Meshtastic forks (ignores public `0x2B` traffic). |
+| **`0xF3`** | **FOSSA Systems** | Used by specific commercial/amateur LoRa satellite constellations (e.g., **FOSSASAT**) to prevent interference from terrestrial LoRa traffic. |
+| **`0x55`** | **Isolated Array A** | **Legacy Experimental Value**. Alternating bit pattern (`01010101`). *Deprecated for production:* Mimics the LoRa preamble and is prone to false packet triggers (see warning below). |
+| **`0xAA`** | **Isolated Array B** | **Legacy Experimental Value**. Alternating bit pattern (`10101010`). *Deprecated for production:* Mimics the LoRa preamble and is prone to false packet triggers (see warning below). |
 
-> ⚠️ **The Preamble Correlation Trap:**
-> Custom deployments should strictly avoid sync words with sparse bit transitions (such as `0x00` or `0xFF`). The internal baseband correlation engine relies on distinct signal transitions to sync its timing grid. Continuous sequences of zeros or ones drastically degrade receiver sensitivity.
+> ⚠️ **The Preamble Correlation Trap & Hardware Considerations:**
+> * **Avoid Sparse & Alternating Patterns (`0x00`, `0xFF`, `0x55`, `0xAA`):** Custom deployments should strictly avoid sync words with sparse bit transitions (`0x00`, `0xFF`) as well as alternating bit patterns (`0x55` = `01010101`, `0xAA` = `10101010`). Semtech datasheets advise against `0x55` and `0xAA` because they resemble the **LoRa preamble**, which can cause false packet triggers on background noise or mid-preamble, increasing packet error rates. For custom isolated networks, irregular bit patterns (such as `0x14`, `0x42`, or `0x69`) are recommended instead.
+> * **SX127x vs. SX126x Mapping:** The 1-byte values listed above apply to the **SX127x** transceiver series. Newer **SX126x** chips use 2-byte sync words internally (for example, `0x12` maps to `0x1424`, and `0x34` maps to `0x3444`). Most modern radio libraries handle this translation automatically.
+> * **Coexistence on `0x2B`:** Because both **Meshtastic** and **MeshCom** share the `0x2B` sync word, cross-network interference is primarily avoided through different center frequencies and Spreading Factors (SF).
 
 ### MeshCom Co-Existence Layout
 To successfully capture live telemetry frames from official ÖVSV MeshCom gateways, the firmware forces a multi-register synchronization sequence during the unified thread-safe constructor pass:
 
 ```cpp
-// Predefined LoRa Sync Word options for hardware correlation filtering
-constexpr uint8_t LORA_SYNC_WORD_PUBLIC_NETWORK_MODE       = 0x34; // MeshCom (ÖVSV standard for amateur radio mesh)
-constexpr uint8_t LORA_SYNC_WORD_TACTICAL_NETWORK_MODE     = 0x24; // Meshtastic (Civilian off-grid tactical mesh network)
-constexpr uint8_t LORA_SYNC_WORD_PRIVATE_NETWORK_MODE      = 0x12; // Semtech Default (Factory default / Private point-to-point)
-constexpr uint8_t LORA_SYNC_WORD_CUSTOM_NETWORK_MODE       = 0x55; // Custom / Experimental individual networks (highly isolated)
-constexpr uint8_t LORA_SYNC_WORD_EXPERIMENTAL_NETWORK_MODE = 0xAA; // Custom / Experimental individual networks (highly isolated)
+// Predefined LoRa Sync Word options for hardware correlation filtering, see docs/lora/device-settings.md
+constexpr uint8_t LORA_SYNC_WORD_PUBLIC_NETWORK_MODE     = 0x34; // LoRaWAN Default Gateways, The Things Network (TTN), Helium, ChirpStack,
+                                                                 // TinyGS (0x34) LoRa Satellites (Cubesats)
+constexpr uint8_t LORA_SYNC_WORD_MESHTASTIC_NETWORK_MODE = 0x2B; // Meshtastic Default
+constexpr uint8_t LORA_SYNC_WORD_MESHCOM_NETWORK_MODE    = 0x2B; // MeshCom (ÖVSV standard for amateur radio mesh), also Meshtastic official standard
+constexpr uint8_t LORA_SYNC_WORD_TACTICAL_NETWORK_MODE   = 0x24; // Tactical/Team Meshtastic forks (Civilian off-grid tactical mesh network)
+constexpr uint8_t LORA_SYNC_WORD_PRIVATE_NETWORK_MODE    = 0x12; // Semtech Default (Factory default / Private point-to-point), LoRa-APRS, MeshCore, Reticulum,
+                                                                 // ExpressLRS (ELRS), TinyGS (0x12) LoRa Satellites (Cubesats)
+                                                                 // disaster.radio / Ripple (former, specialized off-grid-mesh projects)
+constexpr uint8_t LORA_SYNC_WORD_FOSSASAT_NETWORK_MODE   = 0xF3; // Special commercial/amateur LoRa satellite constellations (e.g., FOSSASAT) to prevent interference from terrestrial LoRa traffic
+constexpr uint8_t LORA_SYNC_WORD_ISOLATED_ARRAY_A        = 0x55; // Legacy / Experimental (Deprecated: prone to false preamble triggers, prefer irregular bytes like 0x14)
+constexpr uint8_t LORA_SYNC_WORD_ISOLATED_ARRAY_B        = 0xAA; // Legacy / Experimental (Deprecated: prone to false preamble triggers, prefer irregular bytes like 0x42)
 
 // Active hardware synchronization configuration selector
-constexpr uint8_t LORA_SYNC_WORD = LORA_SYNC_WORD_PUBLIC_NETWORK_MODE;
+constexpr uint8_t LORA_SYNC_WORD = LORA_SYNC_WORD_MESHCOM_NETWORK_MODE;
 ```
 
 This variable updates the Semtech baseband modem alongside an expanded preamble length of **12 symbols** to prevent packet dropping during long correlation windows:
@@ -107,7 +117,66 @@ writeRegister(0x21, 0x0CU); // RegPreambleLsb (12 = 0x0C)
 
 ---
 
-## 🛠️ Part 4: Troubleshooting Packet Drops & Telemetry Failures
+## ⚙️ Part 4: SX126x Architecture & Register/Opcode Mapping
+
+While legacy boards (such as LilyGO T-Beam v1.1 or TTGO LoRa32) rely on the register-mapped **SX127x** series, newer hardware platforms (such as Heltec WiFi LoRa 32 V3 or LilyGO T-Beam Supreme) utilize the **SX126x** transceiver family (SX1262 / SX1268).
+
+Unlike the SX127x, the SX126x is **command-driven (Opcode API)** with an internal state machine. Direct SPI register reads/writes are largely replaced by SPI opcodes, and the host MCU must monitor the hardware **`BUSY`** pin before issuing any command.
+
+### SX127x vs. SX126x Hardware Mapping
+
+| Feature / Function | SX127x (Register-Based) | SX126x (Opcode / Extended Register) |
+| :--- | :--- | :--- |
+| **Sync Word Storage** | Register `0x39` (**1 Byte**) | Registers `0x0740` (MSB) & `0x0741` (LSB) (**2 Bytes**) |
+| **Modulation Config** | Registers `0x1D`, `0x1E`, `0x26` | Opcode `0x8B` (`SetModulationParams`) |
+| **Packet & Preamble** | Registers `0x20` (MSB) & `0x21` (LSB) | Opcode `0x8C` (`SetPacketParams`, Bytes 1–2 = `0x000C`) |
+| **RF Frequency** | Registers `0x06`, `0x07`, `0x08` | Opcode `0x86` (`SetRfFrequency`) |
+| **IRQ Status & Clear** | Register `0x12` (`RegIrqFlags`) | Opcode `0x12` (`GetIrqStatus`) & `0x02` (`ClearIrqStatus`) |
+| **Chip Identification** | Register `0x42` (`RegVersion` == `0x12`) | No version register; read default sync word at `0x0740` (`0x14`) |
+| **TCXO & RF Switch** | External / GPIO controlled | Opcodes `0x97` (`SetDIO3AsTcxoCtrl`) & `0x9D` (`SetDIO2AsRfSwitchCtrl`) |
+
+### 1-Byte to 2-Byte Sync Word Translation
+Because the SX126x baseband correlator expects a 16-bit sync word, 1-byte SX127x sync words are mapped by splitting the upper and lower nibbles and padding them with `4` (`0x4`):
+
+$$\text{SX126x SyncWord} = ((\text{Byte}_{8\text{bit}} \ \& \ \text{0xF0}) \ll 8) \ | \ ((\text{Byte}_{8\text{bit}} \ \& \ \text{0x0F}) \ll 4) \ | \ \text{0x0404}$$
+
+| Network Profile | SX127x (1-Byte) | SX126x (2-Byte) | Register `0x0740` / `0x0741` |
+| :--- | :--- | :--- | :--- |
+| **MeshCom / Meshtastic** | `0x2B` | **`0x24B4`** | `0x24`, `0xB4` |
+| **Private / LoRa-APRS** | `0x12` | **`0x1424`** | `0x14`, `0x24` |
+| **Public LoRaWAN** | `0x34` | **`0x3444`** | `0x34`, `0x44` |
+| **Tactical Mesh** | `0x24` | **`0x2444`** | `0x24`, `0x44` |
+| **FOSSA Systems** | `0xF3` | **`0xF434`** | `0xF4`, `0x34` |
+
+### SX126x Initialization Sequence (C++ / SPI)
+Unlike the SX127x, writing the sync word on an SX126x requires the `WriteRegister` opcode (`0x0D`) followed by a 16-bit address, while ensuring the `BUSY` line is low:
+
+```cpp
+// Convert 1-byte SX127x sync word to 2-byte SX126x format
+constexpr uint16_t mapSyncWordToSx126x(uint8_t syncWord8) {
+    return ((static_cast<uint16_t>(syncWord8 & 0xF0) << 8) |
+            (static_cast<uint16_t>(syncWord8 & 0x0F) << 4) | 0x0404U);
+}
+
+// Write 2-byte sync word to SX126x registers 0x0740 and 0x0741 via Opcode 0x0D
+void setSx126xSyncWord(uint8_t syncWord8) {
+    uint16_t sw16 = mapSyncWordToSx126x(syncWord8);
+    uint8_t payload[5] = {
+        0x0D,                                      // Opcode: WriteRegister
+        0x07, 0x40,                                // 16-bit Start Address (0x0740)
+        static_cast<uint8_t>((sw16 >> 8) & 0xFF),  // MSB -> 0x0740
+        static_cast<uint8_t>(sw16 & 0xFF)          // LSB -> 0x0741
+    };
+    waitWhileBusy();                               // Mandatory SX126x BUSY pin check
+    spiTransfer(payload, sizeof(payload));
+}
+```
+
+> ⚠️ **Critical SX126x Pitfall (Silent Receiver / TCXO):**
+> Most SX1262 modules (e.g., Heltec V3, Ra-01SH) use a **TCXO** powered via `DIO3` and an internal antenna switch driven by `DIO2`. If you do not explicitly send **`SetDIO3AsTcxoCtrl` (`0x97`)** and **`SetDIO2AsRfSwitchCtrl` (`0x9D`)** during initialization, the chip will fail to lock its PLL (`XOSC_START_ERR`) and remain completely deaf.
+
+
+## 🛠️ Part 5: Troubleshooting Packet Drops & Telemetry Failures
 
 When listening to live MeshCom grids or experimental point-to-point networks, your terminal might remain silent despite active RF activity in your area. This section details how to diagnose, interpret, and resolve low-level hardware anomalies using the automated register metrics layer.
 
