@@ -1,0 +1,64 @@
+name: Feature Request
+description: Suggest an idea or improvement for FoxMesh.
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+assignees:
+  - tkuschel
+type: feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing your idea to improve FoxMesh! Please fill out the details below so we can evaluate your suggestion.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: A clear and concise description of what the problem or limitation is (e.g., "I'm always frustrated when...").
+      placeholder: Describe the problem or use case...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: A clear and concise description of what you want to happen.
+      placeholder: How should this feature work?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you've considered
+      description: Any alternative solutions, workarounds, or features you've considered.
+      placeholder: Optional...
+    validations:
+      required: false
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: Target Hardware (if applicable)
+      description: Which LoRa devices would benefit from or are required for this feature?
+      multiple: true
+      options:
+        - All supported devices
+        - TTGO lora32 v21
+        - LilyGo T-BeamS3-Supreme
+        - other
+    validations:
+      required: false
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/tkuschel/FoxMesh/blob/main/CODE_OF_CONDUCT.md).
+      options:
+        - label: I agree to follow FoxMesh's Code of Conduct
+          required: true
+  - type: upload
+    id: mockups
+    attributes:
+      label: Mockups, diagrams, or references
+      description: If applicable, upload screenshots, sketches, or protocol diagrams to help explain your idea.
+    validations:
+      required: false

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: FoxMesh Code of Conduct
+    url: https://github.com/tkuschel/FoxMesh/blob/main/CODE_OF_CONDUCT.md
+    about: Please review our Code of Conduct before participating in the community.
