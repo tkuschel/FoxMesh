@@ -14,6 +14,7 @@ sdkconfig.*.old
 
 # --- IDE Configurations (VS Code / VSCodium) ---
 .vscode/
+compile_commands.json
 
 # --- Local Environment & Backups ---
 .env
