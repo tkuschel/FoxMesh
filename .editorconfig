@@ -8,10 +8,18 @@
  * For the full license terms, see the LICENSE file in the project root.
  */
 
+# Top-most EditorConfig files (stops searching in parent directories)
 root = true
 
+# Apply to all files in the project
 [*]
 charset = utf-8
 end_of_line = lf
 trim_trailing_whitespace = true
 insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+# Exception for Markdown: keep trailing whitespace for manual line breaks (2 spaces)
+[*.md]
+trim_trailing_whitespace = false
